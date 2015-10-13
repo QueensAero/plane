@@ -119,7 +119,7 @@ void setup(){
   initializeServos();
 
   //start system time
-  prev_fast_time = micros();
+  prev_fast_time = millis();
   prev_medium_time = prev_fast_time;
   prev_slow_time = prev_fast_time;
   prev_long_time = prev_fast_time;
