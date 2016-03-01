@@ -75,6 +75,10 @@ double altitude_at_drop;
 double airspeed;
 byte blinkState;
 
+//Tail wheel declarations
+Servo wheel_servo;
+volatile int pwm_value[ ] = {0,0};
+volatile int prev_time[ ] = {0,0};
 
 //this is the best way to declare objects! 
 //other ways work but are not robust... sometimes they fail because Arduino compiler is stupid
@@ -229,6 +233,16 @@ void fastLoop(){
 
 void mediumLoop(){
   updateServos();
+  
+  //De-mixing of signal for tail wheel
+  int signal_wheel;
+  
+  if ((pwm_value[0] != 0) && (pwm_value[1] != 0)){
+    signal_wheel = tail_wheel_demixing();
+    wheel_servo.write(signal_wheel);
+  }
+  delay(10);
+  
 }
 
 //preforme serial communication in the slow loop - this needs to hapen less often
@@ -302,12 +316,35 @@ void longLoop(){
   digitalWrite(STATUS_LED_PIN, blinkState);  
 }
 
+int tail_wheel_demixing(){
+  int signal_wheel;
+  int left_signal = pwm_value[0]-100; //100 offset. may be subject to change
+  int right_signal = pwm_value[1]-100; //100 offset. may be subect to change
+  
+//  SerialUSB.print(left_signal); //uncomment to show values to know how much offset is needed
+//  SerialUSB.print(" ");
+//  SerialUSB.println(right_signal);
+  
+  signal_wheel = left_signal + right_signal;
+  signal_wheel = constrain(map(signal_wheel,2000,4000,0,255),0,255);
+  
+  return(signal_wheel);
+}
 
 //initialize servo locations
 void initializeServos(){
   right_aileron_servo.attach(RIGHT_AILERON_SERVO_PIN);
   left_aileron_servo.attach(LEFT_AILERON_SERVO_PIN);
   elevator_servo.attach(ELEVATOR_SERVO_PIN);
+  
+  //De-mixing of signal to tail wheel
+  pinMode(ELEVATOR_INPUT_PIN, INPUT); 
+  pinMode(RUDDER_INPUT_PIN, INPUT); 
+  
+  attachInterrupt(ELEVATOR_INPUT_PIN, rising_elevator, RISING);
+  attachInterrupt(RUDDER_INPUT_PIN, rising_rudder, RISING);
+
+  wheel_servo.attach(TAIL_WHEEL_PIN);
 }
 
 //function to update servo positions
@@ -473,7 +510,73 @@ void initializeDX6(){
 
 }
  
- //PWM STUFF has to stay in main page cause Arduino sucks
+ //PWM STUFF has to stay in main page because Arduino...
+
+//Interrupt routines for de-mixing of signal. Error checking to ensure the signal is valid.
+
+//interupt service routine called on the rising edge of the pulse
+void rising_elevator()
+{
+  //record current time.  this is the rise time
+  prev_time[0] = micros();
+  
+    //calculate the time since the last falling edge was detected
+    //only count this as a valid rising edge if time difference is more than 1000 microseconds
+    if(prev_time[0] > 1000){
+       //if it is a valid rising edge, set the interupt for the falling edge on the same pin
+       attachInterrupt(ELEVATOR_INPUT_PIN, falling_elevator, FALLING);
+    }
+    
+  //SerialUSB.println("rising elevator"); //For testing purposes only
+}
+
+//interrupt service routine called on the falling edge of the pulse
+void falling_elevator() {
+  //record current time, this is the fall time of the pulse
+  pwm_value[0] = micros()-prev_time[0];
+  
+  //calculate the time difference between the rising and falling edge
+  //only a valid pulse if the time difference is between 400 and 2500 microseconds
+  if (pwm_value[0] >= 400 && pwm_value[0] <= 2500){
+    attachInterrupt(ELEVATOR_INPUT_PIN, rising_elevator, RISING);
+  }
+  
+  //SerialUSB.println(pwm_value[0]);//For testing purposes only
+}
+
+//interupt service routine called on the rising edge of the pulse
+void rising_rudder()
+{
+  //record current time.  this is the rise time
+  prev_time[1] = micros();
+  
+  //calculate the time since the last falling edge was detected
+  //only count this as a valid rising edge if time difference is more than 1000 microseconds
+  if(prev_time[1] >= 1000){
+    //if it is a valid rising edge, set the interupt for the falling edge on the same pin
+    attachInterrupt(RUDDER_INPUT_PIN, falling_rudder, FALLING);
+  }
+  
+  //SerialUSB.println("rising rudder"); //For testing purposes only
+}
+
+//interrupt service routine called on the falling edge of the pulse
+void falling_rudder() {
+  //record current time, this is the fall time of the pulse
+  pwm_value[1] = micros()-prev_time[1];
+  
+  //calculate the time difference between the rising and falling edge
+  //only a valid pulse if the time difference is between 400 and 2500 microseconds
+  if (pwm_value[1] >= 400 && pwm_value[1] <= 2500){
+    attachInterrupt(RUDDER_INPUT_PIN, rising_rudder, RISING);
+  }
+  
+  //SerialUSB.println(pwm_value[1]);//For testing purposes only
+}
+
+
+//These following interrupt routines can be deleted. 
+
 //interupt service routine called on the rising edge of the pulse
 void PWM_RISING_ISR_0(){
     //record current time.  this is the rise time
@@ -487,7 +590,6 @@ void PWM_RISING_ISR_0(){
           attachInterrupt(PWM_pin[0], PWM_FALLING_ISR_0, FALLING);
     }
 }
-
 //interrupt service routine called on the falling edge of the pulse
 void PWM_FALLING_ISR_0(){
     //record current time, this is the fall time of the pulse
