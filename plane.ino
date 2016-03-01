@@ -321,6 +321,19 @@ int tail_wheel_demixing(){
   int left_signal = pwm_value[0]-100; //100 offset. may be subject to change
   int right_signal = pwm_value[1]-100; //100 offset. may be subect to change
   
+//  Switch to true if the servos are installed in the opposite direction
+  boolean flip_left_signal = false;
+  boolean flip_right_signal = false;
+  
+  if (flip_left_signal == true)
+    left_signal = map(left_signal,1000,2000,2000,1000);
+  if (flip_right_signal == true)
+    right_signal = map(right_signal,1000,2000,2000,1000);
+  
+//  int left_signal = pwm_value[0]-100; //100 offset. may be subject to change
+//  int right_signal = pwm_value[1]-100; //100 offset. may be subect to change
+    
+//  Use following code to make sure servo is straight. Should obtain 1500 for both left and right signals at rest.
 //  SerialUSB.print(left_signal); //uncomment to show values to know how much offset is needed
 //  SerialUSB.print(" ");
 //  SerialUSB.println(right_signal);
