@@ -76,10 +76,7 @@ void dmpDataReady() {
 }
 
 void setup(){
-  Serial.begin(57600);  // tested to be about 0.17ms to print one double
-                        //9600 was 1.02ms
-                        //115200 was 0.084ms - this is very fast, if there is interference could get errors
-  
+
   //start up serial communicator                      
   comm.initialize();
   comm.sendMessage(MESSAGE_START);
@@ -245,9 +242,7 @@ void slowLoop(){
     
        comm.sendMessage(MESSAGE_RESTART_AKN);
   } 
-  while(comm.calibration_flag){     
-      comm.calibrate();
-  }
+
   /*
   unsigned long t2 = micros(); //for testing timing
   
