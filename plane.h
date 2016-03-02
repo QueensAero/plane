@@ -3,6 +3,7 @@
 #define AILERON_INPUT_PIN 9
 #define ELEVATOR_INPUT_PIN 8
 #define AILERON_MODE_PIN 7
+#define RUDDER_INPUT_PIN 13
 
 //system timing variables in microseconds
 #define SLOW_LOOP_TIME 250 //100 miliseconds
@@ -13,11 +14,12 @@
 //define Servo pins 
 #define DROP_PIN 2 //actually on tilt pin, I accidently left out a physical drop pin on the PCB...
 #define CAMERA_TILT_PIN 11 //this is not physically used on the PCB...
-#define CAMERA_PAN_PIN 3
+#define CAMERA_PAN_PIN 3 //These camera servos can be deleted.
+#define TAIL_WHEEL_PIN 12
 
-#define RIGHT_AILERON_SERVO_PIN  5
-#define LEFT_AILERON_SERVO_PIN 6
-#define ELEVATOR_SERVO_PIN 4
+#define RIGHT_AILERON_SERVO_PIN  5 //Can be deleted
+#define LEFT_AILERON_SERVO_PIN 6 //Can be deleted
+#define ELEVATOR_SERVO_PIN 4 //Can be deleted?
 
 //hardware declerations
 #define PS_PIN 48 //used for IntersemaBaro, not Eagle Tree
