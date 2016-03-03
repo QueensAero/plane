@@ -77,7 +77,8 @@ void dmpDataReady() {
 
 void setup(){
 
-  //start up serial communicator                      
+  //start up serial communicator
+  delay(3000);  //give XBee time to start
   comm.initialize();
   comm.sendMessage(MESSAGE_START);
 
@@ -198,8 +199,7 @@ void mediumLoop(){
     signal_wheel = tail_wheel_demixing();
     wheel_servo.write(signal_wheel);
   }
-  delay(10);
-  
+
 }
 
 //preforme serial communication in the slow loop - this needs to hapen less often
@@ -290,8 +290,8 @@ void initializeServos(){
   pinMode(ELEVATOR_INPUT_PIN, INPUT); 
   pinMode(RUDDER_INPUT_PIN, INPUT); 
   
-  attachInterrupt(ELEVATOR_INPUT_PIN, rising_elevator, RISING);
-  attachInterrupt(RUDDER_INPUT_PIN, rising_rudder, RISING);
+  attachInterrupt(ELEVATOR_INPUT_PIN, isr_rising_elevator, RISING);
+  attachInterrupt(RUDDER_INPUT_PIN, isr_rising_rudder, RISING);
 
   wheel_servo.attach(TAIL_WHEEL_PIN);
 }
@@ -401,7 +401,7 @@ void initializeMPU6050(){
 //Interrupt routines for de-mixing of signal. Error checking to ensure the signal is valid.
 
 //interupt service routine called on the rising edge of the pulse
-void rising_elevator()
+void isr_rising_elevator()
 {
   //record current time.  this is the rise time
   prev_time[0] = micros();
@@ -410,28 +410,28 @@ void rising_elevator()
     //only count this as a valid rising edge if time difference is more than 1000 microseconds
     if(prev_time[0] > 1000){
        //if it is a valid rising edge, set the interupt for the falling edge on the same pin
-       attachInterrupt(ELEVATOR_INPUT_PIN, falling_elevator, FALLING);
+       attachInterrupt(ELEVATOR_INPUT_PIN, isr_falling_elevator, FALLING);
     }
     
   //SerialUSB.println("rising elevator"); //For testing purposes only
 }
 
 //interrupt service routine called on the falling edge of the pulse
-void falling_elevator() {
+void isr_falling_elevator() {
   //record current time, this is the fall time of the pulse
   pwm_value[0] = micros()-prev_time[0];
   
   //calculate the time difference between the rising and falling edge
   //only a valid pulse if the time difference is between 400 and 2500 microseconds
   if (pwm_value[0] >= 400 && pwm_value[0] <= 2500){
-    attachInterrupt(ELEVATOR_INPUT_PIN, rising_elevator, RISING);
+    attachInterrupt(ELEVATOR_INPUT_PIN, isr_rising_elevator, RISING);
   }
   
   //SerialUSB.println(pwm_value[0]);//For testing purposes only
 }
 
 //interupt service routine called on the rising edge of the pulse
-void rising_rudder()
+void isr_rising_rudder()
 {
   //record current time.  this is the rise time
   prev_time[1] = micros();
@@ -440,21 +440,21 @@ void rising_rudder()
   //only count this as a valid rising edge if time difference is more than 1000 microseconds
   if(prev_time[1] >= 1000){
     //if it is a valid rising edge, set the interupt for the falling edge on the same pin
-    attachInterrupt(RUDDER_INPUT_PIN, falling_rudder, FALLING);
+    attachInterrupt(RUDDER_INPUT_PIN, isr_falling_rudder, FALLING);
   }
   
   //SerialUSB.println("rising rudder"); //For testing purposes only
 }
 
 //interrupt service routine called on the falling edge of the pulse
-void falling_rudder() {
+void isr_falling_rudder() {
   //record current time, this is the fall time of the pulse
   pwm_value[1] = micros()-prev_time[1];
   
   //calculate the time difference between the rising and falling edge
   //only a valid pulse if the time difference is between 400 and 2500 microseconds
   if (pwm_value[1] >= 400 && pwm_value[1] <= 2500){
-    attachInterrupt(RUDDER_INPUT_PIN, rising_rudder, RISING);
+    attachInterrupt(RUDDER_INPUT_PIN, isr_rising_rudder, RISING);
   }
   
   //SerialUSB.println(pwm_value[1]);//For testing purposes only
