@@ -13,7 +13,10 @@ class EagleTreeAltimeterV4 {
     double readAltitude();
     int altimeterAddress; //76
     int readRawData();
-
+/*Value displayed on sensor is either in meters of feet. 
+ * To change between the two, disconnect sensor. Short yellow (data) and brown (clock) dots and connect to power.
+ * This will not affect raw data value to Arduino.
+ */
   private:
     IIR_doubleFilter *filter;
     int zeroVal;
