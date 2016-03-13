@@ -1,7 +1,26 @@
+/*  This class deals with all serial communication. This includes sending and receiving data from the XBee, as well as sending commands and receiving
+data from the GPS. The GPS class is only called from here
+It also controls the servos for the dropbay, since the "drop payload" command will be received directly by this class and it's easier then having another class.
+
+*/
+
+
 #include "Arduino.h"
 #include "Communicator.h"
 #include <Servo.h>
 
+
+//During testing we might want to send over USB to computer. Instead of commenting out a lot of  'SerialUSB.print(...)' statements we can define a macro as below
+//If the line directly below is NOT commented out, then DEGUB_PRINT(...) will send to computer. If it is commented out, the macro DEBUG_PRINT/LN will be empty and
+//the compiler will optimize it out of the code automatically 
+//#define DEBUG_COMMUNICATOR
+#ifdef DEBUG_COMMUNICATOR
+  #define DEBUG_PRINT(x) SerialUSB.print(x)
+  #define DEBUG_PRINTLN(x) SerialUSB.println(x)
+#else
+  #define DEBUG_PRINT(x)
+  #define DEBUG_PRINTLN(x)  
+#endif
 
 //constructor
 Communicator::Communicator() {
@@ -11,29 +30,29 @@ Communicator::~Communicator() {}
 //function called in void setup() that instantiates all the variables, attaches pins, ect
 //this funciton needs to be called before anything else will work
 void Communicator::initialize() {
+	
 
 
   //set initial values to 0
-  airspeed = 0;
   altitude = 0;
   roll = 0;
   pitch = 0;
   altitudeAtDrop = 0;
-  lattitude = 0;
-  longitude = 0;
-  heading = 0;
 
   //start without hardware attached
   dropBayAttached = 0;
   dropBayOpen = 0;
   dropBayDelayTime = 5000;
 
-  //initialize serial commuication to Xbee.  Infinite while loop is to enter bypass
-  //If this fails all communication will fair and this is essentially useless
-  Serial.begin(XBEE_BAUD);  //this is to Xbee
+  //initialize serial commuication to Xbee.  While loop is to enter bypass
+  //If this fails all communication will fail, and the control will not work at all (I believe)
+  XBEE_SERIAL.begin(XBEE_BAUD);  //this is to Xbee
   int tries = 0;
-  while(!enterBypass() && ++tries < 5);  //infinite while until successfully entered bypass. This should only take 1 try
+  while(!enterBypass() && ++tries < 5);  //while until successfully entered bypass. This should only take 1 try
 
+  //setup the GPS 
+  setupGPS();
+  
   #ifdef DEBUG_COMMUNICATOR
       SerialUSB.begin(SERIAL_USB_BAUD); //this is to computer
   #endif
@@ -43,23 +62,19 @@ void Communicator::initialize() {
 //function that is called from main program to receive incoming serial commands from ground station
 //commands are one byte long, represented as characters for easy reading
 void Communicator::recieveCommands() {
-  //command syntax:
-  //u=up  d=down l=left r=right x=drop
 
   //look for new byte from serial buffer
-  byte incomingByte;
-  if (Serial.available() > 0) {
+  if (XBEE_SERIAL.available() > 0) {
     //new command detected, parse and execute
-
-    incomingByte = Serial.read();
+    byte incomingByte = XBEE_SERIAL.read();
     //check to make sure hardware is connected before atempting to write values
 
     //drop bay
     if (dropBayAttached) {
       if (incomingByte == 'P') {
-        dropVal = DROP_BAY_OPEN;
+        dropBayServoPos = DROP_BAY_OPEN;
         sendMessage(MESSAGE_DROP_ACK);
-        dropServo.writeMicroseconds(dropVal);
+        dropServo.writeMicroseconds(dropBayServoPos);
         altitudeAtDrop = altitude;
         dropBayOpen = 1;
         closeDropBayTime = millis() + dropBayDelayTime;
@@ -75,19 +90,64 @@ void Communicator::recieveCommands() {
     if (incomingByte == 'q') {  //RESTART FUNCTION.
       sendData();  //flush current data packets
       restart = true;
-      dropVal = DROP_BAY_CLOSED;
-      dropServo.writeMicroseconds(dropVal);
+      dropBayServoPos = DROP_BAY_CLOSED;
+      dropServo.writeMicroseconds(dropBayServoPos);
     }
     
   }
 }
 
+
+void Communicator::getSerialDataFromGPS(){    
+	
+	while(GPS_SERIAL.available())  
+	{ 
+    	nmeaBuf[nmeaBufInd] = GPS_SERIAL.read(); 
+	
+		if(nmeaBuf[nmeaBufInd++] == '\n')  //increment index after checking if current character signifies the end of a string
+		{	
+			nmeaBuf[nmeaBufInd-1] = '\0';  //add null terminating character (note: -1 is because nmeaBufInd is incremented in if statement)
+			newParsedData = GPS.parse(nmeaBuf); 	//this parses the string, and updates the values of GPS.lattitude, GPS.longitude etc.
+			nmeaBufInd = 0;  //regardless of it parsing sucessful, we want to reset position back to zero
+		}
+     
+		if(nmeaBufInd >= MAXLINELENGTH)  //should never happen. Means a corrupted packed and the newline was missed. Good to have just in case
+			nmeaBufInd = 0;  //note the next packet will then have been corrupted as well. Can't really recover until the next-next packet
+
+	}
+	
+}
+
+void Communicator::setupGPS(){
+
+	//initialize the variables in GPS class object
+	GPS.init();
+
+	//start the serial communication
+	GPS_SERIAL.begin(GPS_BAUD);
+
+	//Commands to configure GPS:
+	GPS_SERIAL.println(PMTK_SET_NMEA_OUTPUT_RMCONLY); 		//set to only output GPRMC (has all the info we need), 
+	GPS_SERIAL.println(SET_NMEA_UPDATE_RATE_5HZ);			//increase rate strings sent over serial
+	GPS_SERIAL.println(PMTK_API_SET_FIX_CTL_5HZ);			//increase rate GPS 'connects' and syncs with satellites
+	GPS_SERIAL.println(ENABLE_SBAB_SATELLITES);				//enable using a more accurate type of satellite
+	GPS_SERIAL.println(ENABLE_USING_WAAS_WITH_SBSB_SATS); 	//enable the above satellites in 'fix' mode (I think)
+	delay(3000);  //not really sure if needed.
+  
+	//flush the GPS input (still unsure if the GPS sends response to the above commands)
+	while(GPS_SERIAL.available())
+		GPS_SERIAL.read();
+}
+
+
+
+
 void Communicator::attachDropBay(int _dropServoPin) {
   dropBayAttached = 1;
-  dropVal = DROP_BAY_CLOSED;
+  dropBayServoPos = DROP_BAY_CLOSED;
   dropServoPin = _dropServoPin;
   dropServo.attach(dropServoPin);
-  dropServo.writeMicroseconds(dropVal);
+  dropServo.writeMicroseconds(dropBayServoPos);
 }
 
 int Communicator::getDropPin () {
@@ -95,45 +155,52 @@ int Communicator::getDropPin () {
 }
 
 //data is sent via wireless serial link to ground station
-//data packet format:  *p%ROLL%PITCH%ALTITUDE%AIRSPEED%LATTITUDE%LONGITUDE%HEADING&
-//Total number of bytes: 10 (*p% type) + ~ 50 (data) = 60 bytes *4x/second = 240 bytes/s.  This is under outgoing buffer (128 bytes) and baud
+//data packet format:  *p%ROLL%PITCH%ALTITUDE%AIRSPEED%LATTITUDE%LONGITUDE%HEADING%hour%minute%second%ms&
+//Total number of bytes: 13 (*p% type) + ~ 54 (data) = 67 bytes *4x/second = 270 bytes/s.  Each transmission is under outgoing buffer (128 bytes) and baud
 //no other serial communication can be done in other classes!!!
 void Communicator:: sendData() {
-    Serial.print("*p%");
-    Serial.print(roll);
-    Serial.print('%');
-    Serial.print(pitch);
-    Serial.print('%');
-    Serial.print(altitude);
-    Serial.print('%');
-    Serial.print(airspeed);
-	Serial.print('%');
-	Serial.print(lattitude, 4);  //second argument is number of decimal places
-	Serial.print('%');
-	Serial.print(longitude, 4);
-	Serial.print('%');
-	Serial.print(heading, 2);
-    Serial.print('&');
+    XBEE_SERIAL.print("*p%");
+    XBEE_SERIAL.print(roll);  //6?
+    XBEE_SERIAL.print('%');
+    XBEE_SERIAL.print(pitch);  //6?
+    XBEE_SERIAL.print('%');
+    XBEE_SERIAL.print(altitude);  //6
+    XBEE_SERIAL.print('%');
+    XBEE_SERIAL.print(GPS.speed);  //5
+	XBEE_SERIAL.print('%');
+	XBEE_SERIAL.print(GPS.latitude, 4);  //8	//second argument is number of decimal places
+	XBEE_SERIAL.print('%');
+	XBEE_SERIAL.print(GPS.longitude, 4);  //8
+	XBEE_SERIAL.print('%');
+	XBEE_SERIAL.print(GPS.angle, 2);  //6
+	XBEE_SERIAL.print('%');
+	XBEE_SERIAL.print(GPS.hour);  //2
+	XBEE_SERIAL.print('%');
+	XBEE_SERIAL.print(GPS.minute);  //2
+	XBEE_SERIAL.print('%');
+	XBEE_SERIAL.print(GPS.seconds);  //2
+	XBEE_SERIAL.print('%');
+	XBEE_SERIAL.print(GPS.milliseconds);	//3
+    XBEE_SERIAL.print('&');
 }
 
 void Communicator::sendMessage(char message) {
-  Serial.print("*");
-  Serial.print(message);
-  Serial.print("&");
+  XBEE_SERIAL.print("*");
+  XBEE_SERIAL.print(message);
+  XBEE_SERIAL.print("&");
 }
 
 
 
-
-//open bootloader (by sending newline), then send 'B' to enter bypass mode
+//send 'B' to enter bypass mode
 boolean Communicator::enterBypass(){
 
     boolean success = false;
     success = checkInBypassMode();  //check before changing baud rate 
 
     //needs to be at 9600 baud to enter bypass mode
-    Serial.end();
-    Serial.begin(9600);  
+    XBEE_SERIAL.end();
+    XBEE_SERIAL.begin(9600);  
         
     int numTries = 0, maxNumTries = 3;
     if(!success)
@@ -157,8 +224,8 @@ boolean Communicator::enterBypass(){
     
      DEBUG_PRINTLN(numTries);
 
-     Serial.end();
-     Serial.begin(XBEE_BAUD);  //restart serial in the set xbee baudrate
+     XBEE_SERIAL.end();
+     XBEE_SERIAL.begin(XBEE_BAUD);  //restart serial in the set xbee baudrate
      
      return success;
     
@@ -168,14 +235,17 @@ boolean Communicator::enterBypass(){
 void Communicator::sendBypassCommand(){
 
      flushInput();
-     Serial.print("B");  
+     XBEE_SERIAL.print("B");  
 }
 
 //Max time = 1.5s 
+//The idea behind this: if in non-bypass mode, every character sent to the xbee is echoed back. 
+//So the test is to send a character, and wait. If nothing is received, the test is true (ie. we are in bypass mode)
+//which is what we want to be in.  If something is received, then it indicates that we need to keep trying to enter bypass mode 
 boolean Communicator::checkInBypassMode(){
 
   flushInput();
-  Serial.print('@');
+  XBEE_SERIAL.print('@');
   
   if(delayUntilSerialData(1500))  //true indicates it got data, which means it's NOT in bypass mode 
     return false;
@@ -185,7 +255,8 @@ boolean Communicator::checkInBypassMode(){
 }
 
 
-//if receive data after first flush started, this will attempt to flush again
+//We could receive more data while flushing the input. So instead of using just 1 call to 'flushInputUntilCurrentTime'  we repeatedly call it until nothing has been flushedthen
+// it's likely very rare this has any effect, but it doesn't hurt
 void Communicator::flushInput(){
 
   while(flushInputUntilCurrentTime() >0);
@@ -197,8 +268,8 @@ int Communicator::flushInputUntilCurrentTime()
 {
   int valuesDiscarded = 0;
   //flush input
-  while(Serial.available())
-  {    Serial.read();  
+  while(XBEE_SERIAL.available())
+  {    XBEE_SERIAL.read();  
        valuesDiscarded++;
   }
   return valuesDiscarded;
@@ -210,10 +281,10 @@ boolean Communicator::delayUntilSerialData(unsigned long ms_timeout)
 { 
   unsigned long startTime = millis();
 
-  while(Serial.available() <= 0 && (millis()-startTime) < ms_timeout)
+  while(XBEE_SERIAL.available() <= 0 && (millis()-startTime) < ms_timeout)
       delay(2);  
 
-  if((millis()-startTime) >= ms_timeout  && !Serial.available())  //if no data was received before timeout
+  if((millis()-startTime) >= ms_timeout  && !XBEE_SERIAL.available())  //if no data was received before timeout
       return false;
   else
       return true;
