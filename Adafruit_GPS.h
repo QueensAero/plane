@@ -21,28 +21,31 @@ All text above must be included in any redistribution
 #ifndef _ADAFRUIT_GPS_H
 #define _ADAFRUIT_GPS_H
 
-#ifdef __AVR__
-  #if ARDUINO >= 100
-    #include <SoftwareSerial.h>
-  #else
-    #include <NewSoftSerial.h>
-  #endif
-#endif
+
+//Ryan's defined commands. Checksums calculated using http://www.hhhh.org/wiml/proj/nmeaxor.html
+//Some of these are identical to existing ones. Some are these aren't used. 
+#define SET_BAUD_TO_115200 "$PMTK251,115200*1F"  //note print'ln' adds the <CR><LF> part automatically in sendCommand function
+#define SET_BAUD_TO_57600 "$PMTK251,57600*2C"
+#define SET_NMEA_UPDATE_RATE_10HZ "$PMTK220,100*2F"  //this may or may not also do the fix rate
+#define SET_NMEA_UPDATE_RATE_5HZ "$PMTK220,200*2C"
+#define SET_FIX_RATE_5HZ "$PMTK300,200,0,0,0,0*2F"    //this may or may not be only for older models
+#define ENABLE_SBAB_SATELLITES "$PMTK313,1*2E"    //unsure if this is default behaviour
+#define ENABLE_USING_WAAS_WITH_SBSB_SATS "$PMTK301,2*2E"  //call this after above
+#define SET_ONLY_GPRMC "$PMTK314,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*29"
+#define RESET_ALL_SETTINGS "$PMTK104*37"
+
 
 // different commands to set the update rate from once a second (1 Hz) to 10 times a second (10Hz)
 // Note that these only control the rate at which the position is echoed, to actually speed up the
 // position fix you must also send one of the position fix rate commands below too.
-#define PMTK_SET_NMEA_UPDATE_100_MILLIHERTZ  "$PMTK220,10000*2F" // Once every 10 seconds, 100 millihertz.
-#define PMTK_SET_NMEA_UPDATE_200_MILLIHERTZ  "$PMTK220,5000*1B"  // Once every 5 seconds, 200 millihertz.
 #define PMTK_SET_NMEA_UPDATE_1HZ  "$PMTK220,1000*1F"
 #define PMTK_SET_NMEA_UPDATE_5HZ  "$PMTK220,200*2C"
 #define PMTK_SET_NMEA_UPDATE_10HZ "$PMTK220,100*2F"
 // Position fix update rate commands.
-#define PMTK_API_SET_FIX_CTL_100_MILLIHERTZ  "$PMTK300,10000,0,0,0,0*2C" // Once every 10 seconds, 100 millihertz.
-#define PMTK_API_SET_FIX_CTL_200_MILLIHERTZ  "$PMTK300,5000,0,0,0,0*18"  // Once every 5 seconds, 200 millihertz.
 #define PMTK_API_SET_FIX_CTL_1HZ  "$PMTK300,1000,0,0,0,0*1C"
 #define PMTK_API_SET_FIX_CTL_5HZ  "$PMTK300,200,0,0,0,0*2F"
 // Can't fix position faster than 5 times a second!
+
 
 
 #define PMTK_SET_BAUD_57600 "$PMTK251,57600*2C"
@@ -86,82 +89,51 @@ All text above must be included in any redistribution
 // how long to wait when we're looking for a response
 #define MAXWAITSENTENCE 5
 
-#if ARDUINO >= 100
- #include "Arduino.h"
-#if defined (__AVR__) && !defined(__AVR_ATmega32U4__)
- #include "SoftwareSerial.h"
-#endif
-#else
- #include "WProgram.h"
- #include "NewSoftSerial.h"
-#endif
+#include "Arduino.h"
 
 
 class Adafruit_GPS {
  public:
-  void begin(uint16_t baud); 
 
-#ifdef __AVR__
-  #if ARDUINO >= 100 
-    Adafruit_GPS(SoftwareSerial *ser); // Constructor when using SoftwareSerial
-  #else
-    Adafruit_GPS(NewSoftSerial  *ser); // Constructor when using NewSoftSerial
-  #endif
-#endif
-  Adafruit_GPS(HardwareSerial *ser); // Constructor when using HardwareSerial
-
-  char *lastNMEA(void);
-  boolean newNMEAreceived();
-  void common_init(void);
-
-  void sendCommand(const char *);
+    //constructors
+    Adafruit_GPS();
   
-  void pause(boolean b);
-
-  boolean parseNMEA(char *response);
-  uint8_t parseHex(char c);
-
-  char read(void);
-  boolean parse(char *);
-  void interruptReads(boolean r);
-
-  boolean wakeup(void);
-  boolean standby(void);
-
-  uint8_t hour, minute, seconds, year, month, day;
-  uint16_t milliseconds;
-  // Floating point latitude and longitude value in degrees.
-  float latitude, longitude;
-  // Fixed point latitude and longitude value with degrees stored in units of 1/100000 degrees,
-  // and minutes stored in units of 1/100000 degrees.  See pull #13 for more details:
-  //   https://github.com/adafruit/Adafruit-GPS-Library/pull/13
-  int32_t latitude_fixed, longitude_fixed;
-  float latitudeDegrees, longitudeDegrees;
-  float geoidheight, altitude;
-  float speed, angle, magvariation, HDOP;
-  char lat, lon, mag;
-  boolean fix;
-  uint8_t fixquality, satellites;
-
-  boolean waitForSentence(const char *wait, uint8_t max = MAXWAITSENTENCE);
-  boolean LOCUS_StartLogger(void);
-  boolean LOCUS_StopLogger(void);
-  boolean LOCUS_ReadStatus(void);
-
-  uint16_t LOCUS_serial, LOCUS_records;
-  uint8_t LOCUS_type, LOCUS_mode, LOCUS_config, LOCUS_interval, LOCUS_distance, LOCUS_speed, LOCUS_status, LOCUS_percent;
- private:
-  boolean paused;
+    //functions still used
+    void init();
+    uint8_t parseHex(char c);
+    boolean parse(char *);
   
-  uint8_t parseResponse(char *response);
-#ifdef __AVR__
-  #if ARDUINO >= 100
-    SoftwareSerial *gpsSwSerial;
-  #else
-    NewSoftSerial  *gpsSwSerial;
-  #endif
-#endif
-  HardwareSerial *gpsHwSerial;
+    
+  
+    uint8_t hour, minute, seconds, year, month, day;
+    uint16_t milliseconds;
+    // Floating point latitude and longitude value in degrees.
+    float latitude, longitude;
+    // Fixed point latitude and longitude value with degrees stored in units of 1/100000 degrees,
+    // and minutes stored in units of 1/100000 degrees.  See pull #13 for more details:
+    //   https://github.com/adafruit/Adafruit-GPS-Library/pull/13
+    int32_t latitude_fixed, longitude_fixed;
+    float latitudeDegrees, longitudeDegrees;
+    float geoidheight, altitude;
+    float speed, angle, magvariation, HDOP;
+    char lat, lon, mag;
+    boolean fix;
+    uint8_t fixquality, satellites;
+
+    /* Functions and Variables no longer used
+    void pause(boolean b);
+    void sendCommand(const char *);
+    boolean wakeup(void);
+    boolean standby(void);
+    boolean waitForSentence(const char *wait, uint8_t max = MAXWAITSENTENCE);
+    boolean LOCUS_StartLogger(void);
+    boolean LOCUS_StopLogger(void);
+    boolean LOCUS_ReadStatus(void);
+  
+    uint16_t LOCUS_serial, LOCUS_records;
+    uint8_t LOCUS_type, LOCUS_mode, LOCUS_config, LOCUS_interval, LOCUS_distance, LOCUS_speed, LOCUS_status, LOCUS_percent;  */
+  
+
 };
 
 
