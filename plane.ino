@@ -13,9 +13,8 @@
 #include "Communicator.h"
 #include "EagleTreeAltimeterV4.h"
 
-//ROLL PITCH AND YAW CONTROLL
-//SDA pin 4
-//SCL pin 5
+
+//ROLL PITCH AND YAW CONTROLL   //SDA pin 20, SCL pin 21
 MPU6050 mpu;
 #define OUTPUT_READABLE_mpu
 int MPU6050status;
@@ -136,6 +135,12 @@ void loop(){
     fastLoop();
   }
 
+  //check if commands received. This function executes quickly even if a command is received
+  comm.recieveCommands();
+
+  //check if incoming data from GPS. If a full string is received, this function automatically parses it. Shouldn't take >1ms even when parsing required (which is 5x per second)
+  comm.getSerialDataFromGPS();
+
 }
 
 void fastLoop(){
@@ -156,7 +161,6 @@ void fastLoop(){
         if ((mpuIntStatus & 0x10) || fifoCount == 1024) {
             // reset so we can continue cleanly
             mpu.resetFIFO();
-            //Serial.println(F("FIFO overflow!"));
     
         // otherwise, check for DMP data ready interrupt (this should happen frequently)
         } else if (mpuIntStatus & 0x02) {
@@ -192,14 +196,9 @@ void fastLoop(){
 
 void mediumLoop(){
   
-  //De-mixing of signal for tail wheel
-  int signal_wheel;
-  
-  if ((pwm_value[0] != 0) && (pwm_value[1] != 0)){
-    signal_wheel = tail_wheel_demixing();
-    wheel_servo.write(signal_wheel);
-  }
-
+ if ((pwm_value[0] != 0) && (pwm_value[1] != 0))
+      wheel_servo.write(tail_wheel_demixing());  //tail_wheel_demixing returns value to write to servo
+ 
 }
 
 //preforme serial communication in the slow loop - this needs to hapen less often
@@ -209,21 +208,14 @@ void slowLoop(){
  //get latest telementary data 
   altitude = altimeter.readAltitude();
   
-   //pass new data to serial communicator
-   
+  //pass new data to serial communicator
   comm.roll = roll_filter->getCurrentValue() - base_roll;
   comm.pitch = pitch_filter->getCurrentValue() - base_pitch;
   comm.altitude = altitude;
   
-  //send the next set of data
-  //only one variable is sent with each call - 4 calls necessary to send everything
-  #ifndef CALIBRATEING_DX6
-      comm.sendData();  
-  #endif
+  //send data to XBee
+  comm.sendData();  
   
-  //receive commands from ground station
-  //these are caried out inside communicator class
-  comm.recieveCommands();
 
   //check for reset flag
   if(comm.reset == true){
@@ -242,13 +234,6 @@ void slowLoop(){
     
        comm.sendMessage(MESSAGE_RESTART_AKN);
   } 
-
-  /*
-  unsigned long t2 = micros(); //for testing timing
-  
-  Serial.print("  ");
-  Serial.println(t2 - t1);
-  */
 }
 
 void longLoop(){
@@ -257,31 +242,31 @@ void longLoop(){
 }
 
 int tail_wheel_demixing(){
+  
   int signal_wheel;
-  int left_signal = pwm_value[0]-100; //100 offset. may be subject to change
-  int right_signal = pwm_value[1]-100; //100 offset. may be subect to change
+  int left_signal = pwm_value[0]-LEFT_SIGNAL_OFFSET; //currently defined as 100 offset. may be subject to change
+  int right_signal = pwm_value[1]-RIGHT_SIGNAL_OFFSET; //same as above
   
-//  Switch to true if the servos are installed in the opposite direction
-  boolean flip_left_signal = false;
-  boolean flip_right_signal = false;
-  
-  if (flip_left_signal == true)
+
+  //These constants are from plane.h -> switch to true if required based on servo. WILL THIS AFFECT THE OFFSET SIGN? (ie. should it be done after?)
+  if (FLIP_LEFT_SIGNAL)
     left_signal = map(left_signal,1000,2000,2000,1000);
-  if (flip_right_signal == true)
+  if (FLIP_RIGHT_SIGNAL)
     right_signal = map(right_signal,1000,2000,2000,1000);
   
-//  int left_signal = pwm_value[0]-100; //100 offset. may be subject to change
-//  int right_signal = pwm_value[1]-100; //100 offset. may be subect to change
     
-//  Use following code to make sure servo is straight. Should obtain 1500 for both left and right signals at rest.
-//  SerialUSB.print(left_signal); //uncomment to show values to know how much offset is needed
-//  SerialUSB.print(" ");
-//  SerialUSB.println(right_signal);
+  //Use following code to make sure servo is straight. Should obtain 1500 for both left and right signals at rest.
+  /*  SerialUSB.print(left_signal); //uncomment to show values to know how much offset is needed
+      SerialUSB.print(" ");
+      SerialUSB.println(right_signal);  */
+
+  //I think we can do:  return constrain((left_signal+right_signal)/2,1000,2000);  and change medium loop function to wheel_servo.writeMicroseconds
+  //we will likely also need an offset for the neutral position. 
   
   signal_wheel = left_signal + right_signal;
   signal_wheel = constrain(map(signal_wheel,2000,4000,0,255),0,255);
   
-  return(signal_wheel);
+  return signal_wheel;
 }
 
 //initialize servo locations
@@ -294,6 +279,8 @@ void initializeServos(){
   attachInterrupt(RUDDER_INPUT_PIN, isr_rising_rudder, RISING);
 
   wheel_servo.attach(TAIL_WHEEL_PIN);
+  wheel_servo.writeMicroseconds(TAIL_WHEEL_NEUTRAL);  //NOTE: the TAIL_WHEEL_NEUTRAL has not been tested
+  
 }
 
 void initializeDAS(){
@@ -302,12 +289,10 @@ void initializeDAS(){
   
   initializeMPU6050();
   
-   //Serial.println("here");
   altimeter.initialize();
-   //Serial.println("here1");
+  
   //preforme DAS reset
   resetDAS();
-   //Serial.println("here2");
   
   base_pitch = 0;
   base_roll = 0;  
@@ -321,9 +306,9 @@ void resetDAS(){
   
   //call individual reset functions for all the sensors
   altimeter.zero();
-  
   base_pitch = pitch_filter->getCurrentValue();
   base_roll = roll_filter->getCurrentValue();
+  //GPS doesn't retain status information (so don't need to reset). If we filter heading/speed in the future will need to do this
   
 }
 
@@ -339,7 +324,7 @@ void initializeMPU6050(){
 	// initialize device
         
 	//Serial.println("Initializing I2C devices...");
-        comm.sendMessage(MPU6050_INITIALIZING);
+  comm.sendMessage(MPU6050_INITIALIZING);
 
 	mpu.initialize();
 
@@ -413,7 +398,6 @@ void isr_rising_elevator()
        attachInterrupt(ELEVATOR_INPUT_PIN, isr_falling_elevator, FALLING);
     }
     
-  //SerialUSB.println("rising elevator"); //For testing purposes only
 }
 
 //interrupt service routine called on the falling edge of the pulse
@@ -427,7 +411,6 @@ void isr_falling_elevator() {
     attachInterrupt(ELEVATOR_INPUT_PIN, isr_rising_elevator, RISING);
   }
   
-  //SerialUSB.println(pwm_value[0]);//For testing purposes only
 }
 
 //interupt service routine called on the rising edge of the pulse
@@ -443,7 +426,6 @@ void isr_rising_rudder()
     attachInterrupt(RUDDER_INPUT_PIN, isr_falling_rudder, FALLING);
   }
   
-  //SerialUSB.println("rising rudder"); //For testing purposes only
 }
 
 //interrupt service routine called on the falling edge of the pulse
@@ -457,5 +439,4 @@ void isr_falling_rudder() {
     attachInterrupt(RUDDER_INPUT_PIN, isr_rising_rudder, RISING);
   }
   
-  //SerialUSB.println(pwm_value[1]);//For testing purposes only
 }
