@@ -1,11 +1,10 @@
 #include "Arduino.h"
 #include <Servo.h>
+#include "Adafruit_GPS.h" 
 
 //Drop Bay Servo Details. UPDATE THESE FOR 2016!!
 #define DROP_BAY_CLOSED 1100
 #define DROP_BAY_OPEN 1900
-
-
 
 //MESSAGE CONSTANTS
 #define MESSAGE_START       's' 
@@ -24,30 +23,25 @@
 #define MPU6050_DMP_FAILED    '4'
 #define MPU6050_INITIALIZING  '5'
 
-
 //define Servo pins 
 #define DROP_PIN 2
 
 
-//For testing by sending over USB to computer
-//#define DEBUG_COMMUNICATOR
-#ifdef DEBUG_COMMUNICATOR
-  #define DEBUG_PRINT(x) SerialUSB.print(x)
-  #define DEBUG_PRINTLN(x) SerialUSB.println(x)
-#else
-  #define DEBUG_PRINT(x)
-  #define DEBUG_PRINTLN(x)  
-#endif
-
-
 #define XBEE_BAUD 57600
 #define SERIAL_USB_BAUD 9600   //this actually doesn't matter - over USB it defaults to some high baudrate
+#define XBEE_SERIAL Serial3  //or whatever it's on
+
+//GPS constants
+#define MAXLINELENGTH 120
+#define GPS_SERIAL Serial1   //or whatever serial it's on
+#define GPS_BAUD 9600
+
 
 
 class Communicator {
 private:
 	int dropServoPin;
-	int dropVal;
+	int dropBayServoPos;
 
 
 	double altitudeAtDrop;
@@ -66,15 +60,17 @@ private:
 	void flushInput();
 	int flushInputUntilCurrentTime();
 	boolean delayUntilSerialData(unsigned long ms_timeout);
+	
         
         
 public:
 
-    double airspeed, altitude, roll, pitch, lattitude, longitude, heading;
+    double altitude, roll, pitch;
 
 	Communicator();
     ~Communicator();
     void initialize();
+
 
 	int getDropPin();
     int waiting_for_message = false;
@@ -82,6 +78,15 @@ public:
 
     boolean reset;
     boolean restart;
+	
+	//gps variables and functions
+	Adafruit_GPS GPS;
+	char nmeaBuf[MAXLINELENGTH];  
+	int nmeaBufInd = 0;
+	boolean newParsedData = false;
+	void getSerialDataFromGPS();
+	void setupGPS();
+	
 	
 	//functions called by main program each loop
 	void recieveCommands();  //when drop command is received set altitude at drop
