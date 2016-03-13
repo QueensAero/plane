@@ -8,9 +8,15 @@
 #define FAST_LOOP_TIME 1  //1 milisecond
 #define LONG_LOOP_TIME 500 //0.5 seconds
 
-//define Servo pins 
-#define DROP_PIN 2 //actually on tilt pin, I accidently left out a physical drop pin on the PCB...
+//define Demixing & servo pin constants 
 #define TAIL_WHEEL_PIN 12
+#define TAIL_WHEEL_NEUTRAL 1500  //NEED TO CHECK!
+#define FLIP_LEFT_SIGNAL false
+#define FLIP_RIGHT_SIGNAL false
+#define LEFT_SIGNAL_OFFSET 100
+#define RIGHT_SIGNAL_OFFSET 100
+
 
 //hardware declerations
 #define STATUS_LED_PIN 50
+
