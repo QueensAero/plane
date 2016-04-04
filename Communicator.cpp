@@ -9,7 +9,6 @@ It also controls the servos for the dropbay, since the "drop payload" command wi
 #include "Communicator.h"
 #include <Servo.h>
 
-
 //During testing we might want to send over USB to computer. Instead of commenting out a lot of  'SerialUSB.print(...)' statements we can define a macro as below
 //If the line directly below is NOT commented out, then DEGUB_PRINT(...) will send to computer. If it is commented out, the macro DEBUG_PRINT/LN will be empty and
 //the compiler will optimize it out of the code automatically 
@@ -22,6 +21,8 @@ It also controls the servos for the dropbay, since the "drop payload" command wi
   #define DEBUG_PRINTLN(x)  
 #endif
 
+Adafruit_GPS GPS;
+
 //constructor
 Communicator::Communicator() {
 }
@@ -30,8 +31,16 @@ Communicator::~Communicator() {}
 //function called in void setup() that instantiates all the variables, attaches pins, ect
 //this funciton needs to be called before anything else will work
 void Communicator::initialize() {
-	
 
+  pinMode(TX_TO_DISCONNECT, INPUT);  //ensure it's in high impedance state
+  pinMode(RX_TO_DISCONNECT, INPUT);  //ensure it's in high impedance state
+
+ 
+  #ifdef DEBUG_COMMUNICATOR
+      SerialUSB.begin(SERIAL_USB_BAUD); //this is to computer
+      //while(!SerialUSB);
+      DEBUG_PRINTLN("at start of comm initialize");
+  #endif
 
   //set initial values to 0
   altitude = 0;
@@ -53,9 +62,8 @@ void Communicator::initialize() {
   //setup the GPS 
   setupGPS();
   
-  #ifdef DEBUG_COMMUNICATOR
-      SerialUSB.begin(SERIAL_USB_BAUD); //this is to computer
-  #endif
+  
+  
 
 }
 
@@ -67,6 +75,7 @@ void Communicator::recieveCommands() {
   if (XBEE_SERIAL.available() > 0) {
     //new command detected, parse and execute
     byte incomingByte = XBEE_SERIAL.read();
+    DEBUG_PRINT("Received a command");
     //check to make sure hardware is connected before atempting to write values
 
     //drop bay
@@ -93,6 +102,12 @@ void Communicator::recieveCommands() {
       dropBayServoPos = DROP_BAY_CLOSED;
       dropServo.writeMicroseconds(dropBayServoPos);
     }
+
+    if (incomingByte == 'g') {  //SEND ALTITUDE_AT_DROP
+        XBEE_SERIAL.print("*a");
+        XBEE_SERIAL.print(altitudeAtDrop);
+        XBEE_SERIAL.print("%ee");
+    }
     
   }
 }
@@ -103,8 +118,7 @@ void Communicator::getSerialDataFromGPS(){
 	while(GPS_SERIAL.available())  
 	{ 
     	nmeaBuf[nmeaBufInd] = GPS_SERIAL.read(); 
-	
-		if(nmeaBuf[nmeaBufInd++] == '\n')  //increment index after checking if current character signifies the end of a string
+	  if(nmeaBuf[nmeaBufInd++] == '\n')  //increment index after checking if current character signifies the end of a string
 		{	
 			nmeaBuf[nmeaBufInd-1] = '\0';  //add null terminating character (note: -1 is because nmeaBufInd is incremented in if statement)
 			newParsedData = GPS.parse(nmeaBuf); 	//this parses the string, and updates the values of GPS.lattitude, GPS.longitude etc.
@@ -155,10 +169,13 @@ int Communicator::getDropPin () {
 }
 
 //data is sent via wireless serial link to ground station
-//data packet format:  *p%ROLL%PITCH%ALTITUDE%AIRSPEED%LATTITUDE%LONGITUDE%HEADING%hour%minute%second%ms&
-//Total number of bytes: 13 (*p% type) + ~ 54 (data) = 67 bytes *4x/second = 270 bytes/s.  Each transmission is under outgoing buffer (128 bytes) and baud
+//data packet format:  *p%ROLL%PITCH%ALTITUDE%AIRSPEED%LATTITUDE%LONGITUDE%HEADING%ms%secondee
+//Not anymore: now is bytewise transmission of floats
+//Total number of bytes: 11 (*p% type) + ~ 50 (data) = 61 bytes *4x/second = 244 bytes/s.  Each transmission is under outgoing buffer (128 bytes) and baud
 //no other serial communication can be done in other classes!!!
-void Communicator:: sendData() {
+void Communicator::sendData() {
+
+    /*
     XBEE_SERIAL.print("*p%");
     XBEE_SERIAL.print(roll);  //6?
     XBEE_SERIAL.print('%');
@@ -167,27 +184,65 @@ void Communicator:: sendData() {
     XBEE_SERIAL.print(altitude);  //6
     XBEE_SERIAL.print('%');
     XBEE_SERIAL.print(GPS.speed);  //5
-	XBEE_SERIAL.print('%');
-	XBEE_SERIAL.print(GPS.latitude, 4);  //8	//second argument is number of decimal places
-	XBEE_SERIAL.print('%');
-	XBEE_SERIAL.print(GPS.longitude, 4);  //8
-	XBEE_SERIAL.print('%');
-	XBEE_SERIAL.print(GPS.angle, 2);  //6
-	XBEE_SERIAL.print('%');
-	XBEE_SERIAL.print(GPS.hour);  //2
-	XBEE_SERIAL.print('%');
-	XBEE_SERIAL.print(GPS.minute);  //2
-	XBEE_SERIAL.print('%');
-	XBEE_SERIAL.print(GPS.seconds);  //2
-	XBEE_SERIAL.print('%');
-	XBEE_SERIAL.print(GPS.milliseconds);	//3
-    XBEE_SERIAL.print('&');
+  	XBEE_SERIAL.print('%');
+  	XBEE_SERIAL.print(GPS.latitude, 4);  //8	//second argument is number of decimal places
+  	XBEE_SERIAL.print('%');
+  	XBEE_SERIAL.print(GPS.longitude, 4);  //8
+  	XBEE_SERIAL.print('%');
+  	XBEE_SERIAL.print(GPS.angle, 2);  //6
+  	XBEE_SERIAL.print('%');
+  	XBEE_SERIAL.print(GPS.milliseconds);  //2
+  	XBEE_SERIAL.print('%');
+  	XBEE_SERIAL.print(GPS.seconds);	//3
+    XBEE_SERIAL.print("ee"); */
+
+    //Change to:  (total of 35 bytes)
+    XBEE_SERIAL.print("*p");
+    sendFloat((float)roll);
+    sendFloat((float)pitch);
+    sendFloat((float)altitude);
+    sendFloat(GPS.speed);
+    sendFloat(GPS.latitude);
+    sendFloat(GPS.longitude);
+    sendFloat(GPS.angle);
+    sendUint16_t(GPS.milliseconds);
+    sendUint8_t(GPS.seconds);
+    XBEE_SERIAL.print("ee"); 
+    
 }
 
 void Communicator::sendMessage(char message) {
   XBEE_SERIAL.print("*");
   XBEE_SERIAL.print(message);
-  XBEE_SERIAL.print("&");
+  XBEE_SERIAL.print("ee");
+}
+
+void Communicator::sendUint8_t(uint8_t toSend)
+{
+  byte *data = (byte*)&toSend; //cast address of input to byte array
+  XBEE_SERIAL.write(data, sizeof(toSend));  
+  
+}
+
+void Communicator::sendUint16_t(uint16_t toSend)
+{
+  byte *data = (byte*)&toSend; //cast address of input to byte array
+  XBEE_SERIAL.write(data, sizeof(toSend));  
+  
+}
+
+void Communicator::sendInt(int toSend)
+{
+  byte *data = (byte*)&toSend; //cast address of input to byte array
+  XBEE_SERIAL.write(data, sizeof(toSend));  
+  
+}
+
+void Communicator::sendFloat(float toSend)
+{
+  byte *data = (byte*)&toSend; //cast address of float to byte array
+  XBEE_SERIAL.write(data, sizeof(toSend));  //send float as 4 bytes
+  
 }
 
 
