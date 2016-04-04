@@ -24,16 +24,19 @@
 #define MPU6050_INITIALIZING  '5'
 
 //define Servo pins 
-#define DROP_PIN 2
+#define DROP_PIN 10
 
 
 #define XBEE_BAUD 57600
 #define SERIAL_USB_BAUD 9600   //this actually doesn't matter - over USB it defaults to some high baudrate
-#define XBEE_SERIAL Serial3  //or whatever it's on
+#define XBEE_SERIAL Serial3
+
 
 //GPS constants
 #define MAXLINELENGTH 120
-#define GPS_SERIAL Serial1   //or whatever serial it's on
+#define TX_TO_DISCONNECT 18  //these are where the PCB traces go to. Due to a PCB error, TX went to TX, meaning nothing could to communicate. So we wired to Serial2 pins. But we need to makes sure these get disconnected
+#define RX_TO_DISCONNECT 19
+#define GPS_SERIAL Serial2   //Based on re-wiring of PCB
 #define GPS_BAUD 9600
 
 
@@ -60,6 +63,14 @@ private:
 	void flushInput();
 	int flushInputUntilCurrentTime();
 	boolean delayUntilSerialData(unsigned long ms_timeout);
+
+  //sending data
+  void sendFloat(float toSend);
+  void sendInt(int toSend);
+  void sendUint16_t(uint16_t toSend);
+  void sendUint8_t(uint8_t toSend);
+
+
 	
         
         
@@ -80,7 +91,6 @@ public:
     boolean restart;
 	
 	//gps variables and functions
-	Adafruit_GPS GPS;
 	char nmeaBuf[MAXLINELENGTH];  
 	int nmeaBufInd = 0;
 	boolean newParsedData = false;
