@@ -36,7 +36,7 @@ VectorInt16 aaReal;     // [x, y, z]            gravity-free accel sensor measur
 VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measurements
 VectorFloat gravity;    // [x, y, z]            gravity vector
 float euler[3];         // [psi, theta, phi]    Euler angle container
-float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
+float yrp[3];           // [yaw, roll, pitch]   yaw/roll/pitch container and gravity vector
 
 double current_pitch, current_roll;
 double base_pitch, base_roll;
@@ -48,11 +48,16 @@ IIR_doubleFilter *pitch_filter = new IIR_doubleFilter(0.1);
 
 //system variables
 double altitude;
-double altitude_at_drop;
 byte blinkState;
 
 //Servo declarations
-Servo wheel_servo;
+Servo wheel_servo, left_aileron_servo, right_aileron_servo, left_Vtail_servo, right_Vtail_servo;
+//#define PID_MODE_INPUT 7   #define PITCH_INPUT 8   #define ROLL_INPUT 9  #define FLAP_MODE_INPUT 11   #define YAW_INPUT 12
+volatile int pwm_high_time[5];  //In the order of: PID, pitch, roll, flap, yaw
+volatile unsigned long pwm_high_start[5];   
+volatile unsigned long pwm_high_end[5];     
+  
+
 volatile int pwm_value[ ] = {0,0};
 volatile int prev_time[ ] = {0,0};
 
@@ -76,9 +81,13 @@ void dmpDataReady() {
 
 void setup(){
 
+ 
+  
   //start up serial communicator
   delay(3000);  //give XBee time to start
+
   comm.initialize();
+
   comm.sendMessage(MESSAGE_START);
 
   //attach servos that are controlled directly by communicator
@@ -87,7 +96,6 @@ void setup(){
   //initialize Data Acquisition System (which also preforms a DAS reset)
   initializeDAS();
 
- 
 
   //setup hardware that is controlled directly in the main loop
   blinkState = 0;
@@ -177,11 +185,11 @@ void fastLoop(){
             // calculate yaw pitch and roll
             mpu.dmpGetQuaternion(&q, fifoBuffer);        //get measured angle (in Quaternions) from buffer 
             mpu.dmpGetGravity(&gravity, &q);             //compute gravity vector from quaternion mesurment
-            mpu.dmpGetYawPitchRoll(ypr, &q, &gravity);   //with that information, compute yaw pitch and roll
+            mpu.dmpGetYawPitchRoll(yrp, &q, &gravity);   //with that information, compute yaw pitch and roll
     
-    
-            double pitch = ypr[1] * 180 / 3.14159;
-            double roll = ypr[2] * 180 / 3.14159;
+
+            double roll = yrp[1] * 180 / 3.14159;
+            double pitch = yrp[2] * 180 / 3.14159;
     
             if(!isnan(pitch) && !isnan(roll)){  
               roll_filter->addValue(roll);
@@ -194,10 +202,30 @@ void fastLoop(){
     }    
 }
 
+//TODO: figure out which pwm_high_time indexes correspond to which signals. Also add any offsets or negative values (if not doing that on controller)
 void mediumLoop(){
-  
- if ((pwm_value[0] != 0) && (pwm_value[1] != 0))
-      wheel_servo.write(tail_wheel_demixing());  //tail_wheel_demixing returns value to write to servo
+
+ //these lines write the values obtained through isr for each PWM signal
+
+ //wheel servo (requires demixing the two V tail signals (note: these two should also be used below for left and right VTail
+ if ((pwm_high_time[0] != 0) && (pwm_high_time[1] != 0))
+      wheel_servo.writeMicroseconds(tail_wheel_demixing());  //tail_wheel_demixing returns value to write to servo
+
+ //left Vtail
+ if(pwm_high_time[0] != 0)
+    left_Vtail_servo.writeMicroseconds(pwm_high_time[0]);
+
+ //right Vtail
+ if(pwm_high_time[1] != 0)
+    right_Vtail_servo.writeMicroseconds(pwm_high_time[1]);
+
+  //left Aileron
+  if(pwm_high_time[2] != 0)
+    left_aileron_servo.writeMicroseconds(pwm_high_time[2]);
+
+  //right Aileron
+  if(pwm_high_time[3] != 0)
+    right_aileron_servo.writeMicroseconds(pwm_high_time[3]);        
  
 }
 
@@ -241,11 +269,11 @@ void longLoop(){
   digitalWrite(STATUS_LED_PIN, blinkState);  
 }
 
+//TODO: which pwm_high_time values correspond to the left/right signals? (in first two lines in function)
 int tail_wheel_demixing(){
   
-  int signal_wheel;
-  int left_signal = pwm_value[0]-LEFT_SIGNAL_OFFSET; //currently defined as 100 offset. may be subject to change
-  int right_signal = pwm_value[1]-RIGHT_SIGNAL_OFFSET; //same as above
+  int left_signal = pwm_high_time[0]-LEFT_SIGNAL_OFFSET; //currently defined as 100 offset. may be subject to change
+  int right_signal = pwm_high_time[1]-RIGHT_SIGNAL_OFFSET; //same as above
   
 
   //These constants are from plane.h -> switch to true if required based on servo. WILL THIS AFFECT THE OFFSET SIGN? (ie. should it be done after?)
@@ -256,30 +284,46 @@ int tail_wheel_demixing(){
   
     
   //Use following code to make sure servo is straight. Should obtain 1500 for both left and right signals at rest.
-  /*  SerialUSB.print(left_signal); //uncomment to show values to know how much offset is needed
-      SerialUSB.print(" ");
-      SerialUSB.println(right_signal);  */
+  //  SerialUSB.print(left_signal);   SerialUSB.print(" ");  SerialUSB.println(right_signal);         
 
-  //I think we can do:  return constrain((left_signal+right_signal)/2,1000,2000);  and change medium loop function to wheel_servo.writeMicroseconds
-  //we will likely also need an offset for the neutral position. 
+
+  return constrain((left_signal+right_signal)/2,1000,2000);  //average left and right values then constrain to between 1000-2000
   
-  signal_wheel = left_signal + right_signal;
-  signal_wheel = constrain(map(signal_wheel,2000,4000,0,255),0,255);
-  
-  return signal_wheel;
+  // was the below beofre, which returns a degree position instead of microsecond value
+  //return constrain(map(left_signal + right_signal,2000,4000,0,255),0,255);
 }
+
 
 //initialize servo locations
 void initializeServos(){
-  //De-mixing of signal to tail wheel
-  pinMode(ELEVATOR_INPUT_PIN, INPUT); 
-  pinMode(RUDDER_INPUT_PIN, INPUT); 
-  
-  attachInterrupt(ELEVATOR_INPUT_PIN, isr_rising_elevator, RISING);
-  attachInterrupt(RUDDER_INPUT_PIN, isr_rising_rudder, RISING);
+  //set pin modes for incoming PWM signals
+  pinMode(PID_MODE_INPUT, INPUT); 
+  pinMode(FLAP_MODE_INPUT, INPUT); 
+  pinMode(ROLL_INPUT, INPUT); 
+  pinMode(YAW_INPUT, INPUT); 
+  pinMode(PITCH_INPUT, INPUT); 
 
-  wheel_servo.attach(TAIL_WHEEL_PIN);
-  wheel_servo.writeMicroseconds(TAIL_WHEEL_NEUTRAL);  //NOTE: the TAIL_WHEEL_NEUTRAL has not been tested
+  //attach each of the servos (before the interrupts to make sure it's initialized properly). 
+  wheel_servo.attach(RUDDER_OUT_PIN);
+  left_aileron_servo.attach(L_AILERON_OUT_PIN);
+  right_aileron_servo.attach(R_AILERON_OUT_PIN);
+  left_Vtail_servo.attach(L_TAIL_OUT_PIN);
+  right_Vtail_servo.attach(R_TAIL_OUT_PIN);
+
+  //apply 1500us neutral position (if drop bay is ever here, this neutral would likely no be ok for it
+  wheel_servo.writeMicroseconds(1500);  
+  left_aileron_servo.writeMicroseconds(1500);  
+  right_aileron_servo.writeMicroseconds(1500);  
+  left_Vtail_servo.writeMicroseconds(1500);  
+  right_Vtail_servo.writeMicroseconds(1500);  
+
+  //attach interrupts on the rising edge of each input signal
+  attachInterrupt(PID_MODE_INPUT, isr_rising_pid, RISING);
+  attachInterrupt(FLAP_MODE_INPUT, isr_rising_flapMode, RISING);
+  attachInterrupt(ROLL_INPUT, isr_rising_roll, RISING);
+  attachInterrupt(YAW_INPUT, isr_rising_yaw, RISING);
+  attachInterrupt(PITCH_INPUT, isr_rising_pitch, RISING); 
+  
   
 }
 
@@ -381,10 +425,159 @@ void initializeMPU6050(){
       }
 }
  
- //PWM STUFF has to stay in main page because Arduino...
+
+/*6 input signals as labelled on PCB: PID_MODE_INPUT 7, FLAP_MODE_INPUT 11, ROLL_INPUT 9, YAW_INPUT 12, PITCH_INPUT 8
+The mappings between the labelled inputs to outputs are:
+PID_MODE_INPUT  ->
+FLAP_MODE_INPUT ->
+ROLL_INPUT ->
+YAW_INPUT ->
+PITCH_INPUT ->
+
+NOTE: one of these is not needed (there are 4 outputs directly from these signals, the throttle is shorted, tail wheel comes from demixing L/R Tail signals, 1 is unused and 1 is for dropbay 
+    controlled in communicator class.  This brings us to the total of 8 output slots on PCB.  
+
+Only the first set is commented, and all follow those same comments with a different array index
+*/
+
+void isr_rising_pid()
+{
+  //find current time in microseconds
+  pwm_high_start[0] = micros();
+
+  //find difference between this rising edge and last falling edge
+  int time_difference = pwm_high_start[0] - pwm_high_end[0];
+
+  //if it's been long enough since last falling edge (ie. isn't just debouncing) then attach falling interrupt
+  if(time_difference > 1000)
+      attachInterrupt(PID_MODE_INPUT, isr_falling_pid, FALLING);
+
+   
+  
+}
+
+void isr_falling_pid()
+{
+   //find current time in microseconds
+   pwm_high_end[0] = micros();
+
+  //find how long it was high for (in us)
+  int time_difference = pwm_high_end[0] - pwm_high_start[0];   
+
+  //if it was high for correct amount of time (in range of servo commands) then save value
+  if(time_difference >= 400 && time_difference <= 2500)
+      pwm_high_time[0] = time_difference;
+
+   //regardless if time ok, attach rising interrupt, to get next duty cycle 
+   attachInterrupt(PID_MODE_INPUT, isr_rising_pid, RISING); 
+ 
+}
+
+void isr_rising_flapMode()
+{
+    pwm_high_start[1] = micros();
+
+    int time_difference = pwm_high_start[1] - pwm_high_end[1];
+  
+    if(time_difference > 1000)
+      attachInterrupt(FLAP_MODE_INPUT, isr_falling_flapMode, FALLING);
+
+  
+}
+
+void isr_falling_flapMode()
+{
+  pwm_high_end[1] = micros();
+
+   int time_difference = pwm_high_end[1] - pwm_high_start[1];   
+
+   if(time_difference >= 400 && time_difference <= 2500)
+      pwm_high_time[1] = time_difference;
+    
+    attachInterrupt(FLAP_MODE_INPUT, isr_rising_flapMode, RISING); 
+  
+}
+
+void isr_rising_roll()
+{
+  pwm_high_start[2] = micros();
+
+    int time_difference = pwm_high_start[2] - pwm_high_end[2];
+  
+    if(time_difference > 1000)
+      attachInterrupt(ROLL_INPUT, isr_falling_roll, FALLING);
+  
+}
+
+void isr_falling_roll()
+{
+  pwm_high_end[2] = micros();
+
+   int time_difference = pwm_high_end[2] - pwm_high_start[2];   
+
+   if(time_difference >= 400 && time_difference <= 2500)
+      pwm_high_time[2] = time_difference;
+    
+    attachInterrupt(ROLL_INPUT, isr_rising_roll, RISING); 
+  
+}
+
+void isr_rising_yaw()
+{
+  pwm_high_start[3] = micros();
+
+    int time_difference = pwm_high_start[3] - pwm_high_end[3];
+  
+    if(time_difference > 1000)
+      attachInterrupt(YAW_INPUT, isr_falling_yaw, FALLING);
+
+  
+}
+
+void isr_falling_yaw()
+{
+  pwm_high_end[3] = micros();
+
+   int time_difference = pwm_high_end[3] - pwm_high_start[3];   
+
+   if(time_difference >= 400 && time_difference <= 2500)
+      pwm_high_time[3] = time_difference;
+    
+    attachInterrupt(YAW_INPUT, isr_rising_yaw, RISING); 
+  
+}
+
+void isr_rising_pitch()
+{
+  pwm_high_start[4] = micros();
+
+    int time_difference = pwm_high_start[4] - pwm_high_end[4];
+  
+    if(time_difference > 1000)
+      attachInterrupt(PITCH_INPUT, isr_falling_pitch, FALLING);
+
+  
+}
+
+void isr_falling_pitch()
+{
+  pwm_high_end[4] = micros();
+
+   int time_difference = pwm_high_end[4] - pwm_high_start[4];   
+
+   if(time_difference >= 400 && time_difference <= 2500)
+      pwm_high_time[4] = time_difference;
+    
+    attachInterrupt(PITCH_INPUT, isr_rising_pitch, RISING); 
+  
+}
+
+
+
+
 
 //Interrupt routines for de-mixing of signal. Error checking to ensure the signal is valid.
-
+/* These are encorporated into the above isr's
 //interupt service routine called on the rising edge of the pulse
 void isr_rising_elevator()
 {
@@ -439,4 +632,4 @@ void isr_falling_rudder() {
     attachInterrupt(RUDDER_INPUT_PIN, isr_rising_rudder, RISING);
   }
   
-}
+}   */
