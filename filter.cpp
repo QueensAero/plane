@@ -128,4 +128,3 @@ int FIR_integerFilter::getCurrentValue(){
 	}	
 	return sum / arraySize;
 }
-
