@@ -30,7 +30,6 @@ class FIR_doubleFilter{
       double *array;
 };
 
-
 class IIR_integerFilter{
 	public:
 	IIR_integerFilter(int f);
