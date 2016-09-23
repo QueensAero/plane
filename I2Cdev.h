@@ -51,6 +51,8 @@ THE SOFTWARE.
 // -----------------------------------------------------------------------------
 #define I2CDEV_IMPLEMENTATION       I2CDEV_ARDUINO_WIRE
 //#define I2CDEV_IMPLEMENTATION       I2CDEV_BUILTIN_FASTWIRE
+//#define I2CDEV_IMPLEMENTATION       I2CDEV_BUILTIN_NBWIRE
+
 
 // comment this out if you are using a non-optimal IDE/implementation setting
 // but want the compiler to shut up about it
