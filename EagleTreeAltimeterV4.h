@@ -1,4 +1,5 @@
 #include "filter.h"
+#include "I2Cdev.h"
 #include <Wire.h>
 #include <Arduino.h>
 
