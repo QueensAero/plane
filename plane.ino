@@ -7,36 +7,12 @@
 //includes
 #include <Wire.h>
 #include "Servo.h"
-#include "MPU6050_6Axis_MotionApps20.h"
 
 //hardware includes
 #include "Communicator.h"
 #include "EagleTreeAltimeterV4.h"
 
 
-//ROLL PITCH AND YAW CONTROLL   //SDA pin 20, SCL pin 21
-MPU6050 mpu;
-#define OUTPUT_READABLE_mpu
-int MPU6050status;
-
-//MPU6050 stuff
-// MPU control/status vars
-bool dmpReady = false;  // set true if DMP init was successful
-uint8_t mpuIntStatus;   // holds actual interrupt status byte from MPU
-uint8_t devStatus;      // return status after each device operation (0 = success, !0 = error)
-uint16_t packetSize;    // expected DMP packet size (default is 42 bytes)
-uint16_t fifoCount;     // count of all bytes currently in FIFO
-uint8_t fifoBuffer[64]; // FIFO storage buffer
-uint8_t fifoBackup[64]; //backup buffer
-
-// orientation/motion vars
-Quaternion q;           // [w, x, y, z]         quaternion container
-VectorInt16 aa;         // [x, y, z]            accel sensor measurements
-VectorInt16 aaReal;     // [x, y, z]            gravity-free accel sensor measurements
-VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measurements
-VectorFloat gravity;    // [x, y, z]            gravity vector
-float euler[3];         // [psi, theta, phi]    Euler angle container
-float yrp[3];           // [yaw, roll, pitch]   yaw/roll/pitch container and gravity vector
 
 double current_pitch, current_roll;
 double base_pitch, base_roll;
@@ -58,8 +34,6 @@ volatile unsigned long pwm_high_start[5];
 volatile unsigned long pwm_high_end[5];     
   
 
-volatile int pwm_value[ ] = {0,0};
-volatile int prev_time[ ] = {0,0};
 
 //this is the best way to declare objects! 
 //other ways work but are not robust... sometimes they fail because Arduino compiler is stupid
@@ -71,21 +45,22 @@ Communicator comm;
 EagleTreeAltimeterV4 altimeter;
 
 unsigned long current_time;
-unsigned long prev_slow_time, prev_medium_time, prev_fast_time, prev_long_time;
+unsigned long prev_slow_time, prev_medium_time, prev_long_time;
 
-//interupt routine
-volatile bool mpuInterrupt = false;     // indicates whether MPU interrupt pin has gone high
-void dmpDataReady() {
-    mpuInterrupt = true;
-}
+
+
 
 void setup(){
 
- 
+  //do this first so servos are good regardless
+  initializeServos();
+
   
   //start up serial communicator
   delay(3000);  //give XBee time to start
-
+  SerialUSB.begin(115200);
+  Wire.begin();
+  
   comm.initialize();
 
   comm.sendMessage(MESSAGE_START);
@@ -96,18 +71,15 @@ void setup(){
   //initialize Data Acquisition System (which also preforms a DAS reset)
   initializeDAS();
 
-
   //setup hardware that is controlled directly in the main loop
   blinkState = 0;
   pinMode(STATUS_LED_PIN, OUTPUT);
 
-  initializeServos();
 
   //start system time
-  prev_fast_time = millis();
-  prev_medium_time = prev_fast_time;
-  prev_slow_time = prev_fast_time;
-  prev_long_time = prev_fast_time;
+  prev_medium_time = millis();
+  prev_slow_time = prev_medium_time;
+  prev_long_time = prev_medium_time;
   
   //send message to ground station saying everything is ready
   comm.sendMessage(MESSAGE_READY);
@@ -117,7 +89,6 @@ void loop(){
 
   current_time = millis();
 
-  unsigned long fast_time_diff = current_time - prev_fast_time;
   unsigned long medium_time_diff = current_time - prev_medium_time;
   unsigned long slow_time_diff = current_time - prev_slow_time;
   unsigned long long_time_diff = current_time - prev_long_time;
@@ -138,10 +109,7 @@ void loop(){
     mediumLoop();
   }
   
-  if(fast_time_diff > FAST_LOOP_TIME){
-    prev_fast_time = current_time;
-    fastLoop();
-  }
+ 
 
   //check if commands received. This function executes quickly even if a command is received
   comm.recieveCommands();
@@ -151,81 +119,50 @@ void loop(){
 
 }
 
-void fastLoop(){
-  
-  //update current angle
-  //unsigned long t1 = micros();  //used for testing timing
-
-  //reading angles take 5.7ms.
-  if(mpuInterrupt || fifoCount > packetSize){
-        // reset interrupt flag and get INT_STATUS byte
-        mpuInterrupt = false;
-        mpuIntStatus = mpu.getIntStatus();
-    
-        // get current FIFO count
-        fifoCount = mpu.getFIFOCount();
-    
-        // check for overflow
-        if ((mpuIntStatus & 0x10) || fifoCount == 1024) {
-            // reset so we can continue cleanly
-            mpu.resetFIFO();
-    
-        // otherwise, check for DMP data ready interrupt (this should happen frequently)
-        } else if (mpuIntStatus & 0x02) {
-            // wait for correct available data length, should be a VERY short wait
-            while (fifoCount < packetSize) fifoCount = mpu.getFIFOCount();
-    
-            // read a packet from FIFO
-            mpu.getFIFOBytes(fifoBuffer, packetSize);
-            
-            // track FIFO count here in case there is > 1 packet available
-            // (this lets us immediately read more without waiting for an interrupt)
-            fifoCount -= packetSize;
-            
-            // calculate yaw pitch and roll
-            mpu.dmpGetQuaternion(&q, fifoBuffer);        //get measured angle (in Quaternions) from buffer 
-            mpu.dmpGetGravity(&gravity, &q);             //compute gravity vector from quaternion mesurment
-            mpu.dmpGetYawPitchRoll(yrp, &q, &gravity);   //with that information, compute yaw pitch and roll
-    
-
-            double roll = yrp[1] * 180 / 3.14159;
-            double pitch = yrp[2] * 180 / 3.14159;
-    
-            if(!isnan(pitch) && !isnan(roll)){  
-              roll_filter->addValue(roll);
-              pitch_filter->addValue(pitch);
-              current_pitch = pitch - base_pitch;
-              current_roll = roll - base_roll;      
-            }
-        }
-
-    }    
-}
 
 //TODO: figure out which pwm_high_time indexes correspond to which signals. Also add any offsets or negative values (if not doing that on controller)
 void mediumLoop(){
 
  //these lines write the values obtained through isr for each PWM signal
+ // 0 = Left or right aileron
+ // 1 = Left or right aileron
+ // 2 = Mixed 
+ // 3 = 
+
 
  //wheel servo (requires demixing the two V tail signals (note: these two should also be used below for left and right VTail
  if ((pwm_high_time[0] != 0) && (pwm_high_time[1] != 0))
-      wheel_servo.writeMicroseconds(tail_wheel_demixing());  //tail_wheel_demixing returns value to write to servo
-
+      wheel_servo.writeMicroseconds(tail_wheel_demixing(3,2));  //tail_wheel_demixing arguements are leftPin, rightPin.  returns value to write to servo
+      
  //left Vtail
  if(pwm_high_time[0] != 0)
     left_Vtail_servo.writeMicroseconds(pwm_high_time[0]);
 
  //right Vtail
- if(pwm_high_time[1] != 0)
-    right_Vtail_servo.writeMicroseconds(pwm_high_time[1]);
+ if(pwm_high_time[2] != 0)
+    right_Vtail_servo.writeMicroseconds(pwm_high_time[2]);
 
-  //left Aileron
-  if(pwm_high_time[2] != 0)
-    left_aileron_servo.writeMicroseconds(pwm_high_time[2]);
+  //left Aileron  (actually right vtail)
+  if(pwm_high_time[1] != 0)
+    left_aileron_servo.writeMicroseconds(pwm_high_time[1]);
 
   //right Aileron
   if(pwm_high_time[3] != 0)
-    right_aileron_servo.writeMicroseconds(pwm_high_time[3]);        
+    right_aileron_servo.writeMicroseconds(pwm_high_time[3]);       
+
+  /*
+  SerialUSB.print(tail_wheel_demixing(2,3));
+  SerialUSB.print('\t');
+  SerialUSB.print(pwm_high_time[0]);
+  SerialUSB.print('\t');
+  SerialUSB.print(pwm_high_time[1]);
+  SerialUSB.print('\t');
+  SerialUSB.print(pwm_high_time[2]);
+  SerialUSB.print('\t');
+  SerialUSB.print(pwm_high_time[3]);
+  SerialUSB.println('\t');
+  //SerialUSB.print(pwm_high_time[4]);
+  //SerialUSB.println('\t');  */
  
 }
 
@@ -270,10 +207,10 @@ void longLoop(){
 }
 
 //TODO: which pwm_high_time values correspond to the left/right signals? (in first two lines in function)
-int tail_wheel_demixing(){
+int tail_wheel_demixing(int leftPin, int rightPin){
   
-  int left_signal = pwm_high_time[0]-LEFT_SIGNAL_OFFSET; //currently defined as 100 offset. may be subject to change
-  int right_signal = pwm_high_time[1]-RIGHT_SIGNAL_OFFSET; //same as above
+  int left_signal = pwm_high_time[leftPin]-LEFT_SIGNAL_OFFSET; //currently defined as 0 offset. may be subject to change
+  int right_signal = pwm_high_time[rightPin]-RIGHT_SIGNAL_OFFSET; //same as above
   
 
   //These constants are from plane.h -> switch to true if required based on servo. WILL THIS AFFECT THE OFFSET SIGN? (ie. should it be done after?)
@@ -287,7 +224,7 @@ int tail_wheel_demixing(){
   //  SerialUSB.print(left_signal);   SerialUSB.print(" ");  SerialUSB.println(right_signal);         
 
 
-  return constrain((left_signal+right_signal)/2,1000,2000);  //average left and right values then constrain to between 1000-2000
+  return constrain(map((left_signal+right_signal)/2,1000,2000,2000,1000),1000,2000);  //average left and right values, flip them, then constrain to between 1000-2000
   
   // was the below beofre, which returns a degree position instead of microsecond value
   //return constrain(map(left_signal + right_signal,2000,4000,0,255),0,255);
@@ -331,7 +268,6 @@ void initializeDAS(){
   Wire.begin();
   //initialize sensors
   
-  initializeMPU6050();
   
   altimeter.initialize();
   
@@ -357,74 +293,6 @@ void resetDAS(){
 }
 
 
-void initializeMPU6050(){
-	//MPU6050
-	#if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
-		Wire.begin();
-	#elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
-		Fastwire::setup(400, true);
-	#endif
-
-	// initialize device
-        
-	//Serial.println("Initializing I2C devices...");
-  comm.sendMessage(MPU6050_INITIALIZING);
-
-	mpu.initialize();
-
-        // verify connection
-        //Serial.println(F("Testing device connections..."));
-        comm.sendMessage(mpu.testConnection() ? MPU6050_READY : MPU6050_FAILED);
-        
-        // load and configure the DMP
-        //Serial.println(F("Initializing DMP..."));
-        devStatus = mpu.dmpInitialize();
-        //DMP = digital motion processor!
-        
-        //set offsets
-        /*
-        mpu.setXGyroOffset(220);
-        mpu.setYGyroOffset(76);
-        mpu.setZGyroOffset(-85);
-        mpu.setXAccelOffset(548);
-        mpu.setYAccelOffset(-108);
-        mpu.setZAccelOffset(1480);        
-*/
-/*
-        mpu.setXAccelOffset(10);
-        mpu.setYAccelOffset(-180);
-        mpu.setZAccelOffset(1480);  
-*/
-      // make sure it worked (returns 0 if so)
-      if (devStatus == 0) {
-          // turn on the DMP, now that it's ready        
-          //Serial.println(F("Enabling DMP..."));
-          mpu.setDMPEnabled(true);
-  
-          // enable Arduino interrupt detection
-          //Serial.println(F("Enabling interrupt detection (Arduino external interrupt 0)..."));
-          attachInterrupt(52, dmpDataReady, RISING);
-          mpuIntStatus = mpu.getIntStatus();
-  
-          // set our DMP Ready flag so the main loop() function knows it's okay to use it
-          //Serial.println(F("DMP ready! Waiting for first interrupt..."));
-          dmpReady = true;
-          comm.sendMessage(MPU6050_DMP_READY);
-  
-          // get expected DMP packet size for later comparison
-          packetSize = mpu.dmpGetFIFOPacketSize();
-      } else {
-          // ERROR!
-          comm.sendMessage(MPU6050_DMP_FAILED);
-          // 1 = initial memory load failed
-          // 2 = DMP configuration updates failed
-          // (if it's going to break, usually the code will be 1)
-          //Serial.print(F("DMP Initialization failed (code "));
-          //Serial.print(devStatus);
-          //Serial.println(F(")"));
-      }
-}
- 
 
 /*6 input signals as labelled on PCB: PID_MODE_INPUT 7, FLAP_MODE_INPUT 11, ROLL_INPUT 9, YAW_INPUT 12, PITCH_INPUT 8
 The mappings between the labelled inputs to outputs are:
