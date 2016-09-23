@@ -136,5 +136,4 @@ class Adafruit_GPS {
 
 };
 
-
 #endif
