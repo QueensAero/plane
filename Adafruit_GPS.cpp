@@ -197,8 +197,6 @@ uint8_t Adafruit_GPS::parseHex(char c) {
 }
 
 
-
-
 /* The following will no longer work since I've moved the serial communication to the communicator class for greater flexibility
 
 // how long are max NMEA lines to parse?
