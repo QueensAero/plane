@@ -2,7 +2,7 @@
 #include <Servo.h>
 #include "Adafruit_GPS.h" 
 
-//Drop Bay Servo Details. UPDATE THESE FOR 2016!!
+//Drop Bay Servo Details. 
 #define DROP_BAY_CLOSED 1100
 #define DROP_BAY_OPEN 1900
 
@@ -15,6 +15,7 @@
 #define MESSAGE_CAM_RESET   'x'
 #define MESSAGE_ERROR       'e'
 #define MESSAGE_DROP_ACK    'y'
+//note: currently in EagleTreeAltimeter the letter 't' is used to indicate an altimeter I2C timeout
 
 //MPU6050 messages
 #define MPU6050_READY         '1' 
@@ -53,10 +54,6 @@ private:
 
     int dropBayAttached;
        
-    boolean dropBayOpen;
-    unsigned long closeDropBayTime;
-    unsigned long dropBayDelayTime;
-	
 	//These functions help accomplish the enterBypass mode function
 	void sendBypassCommand();
 	boolean checkInBypassMode();
