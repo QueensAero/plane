@@ -38,7 +38,6 @@ void Communicator::initialize() {
  
   #ifdef DEBUG_COMMUNICATOR
       SerialUSB.begin(SERIAL_USB_BAUD); //this is to computer
-      //while(!SerialUSB);
       DEBUG_PRINTLN("at start of comm initialize");
   #endif
 
@@ -50,8 +49,7 @@ void Communicator::initialize() {
 
   //start without hardware attached
   dropBayAttached = 0;
-  dropBayOpen = 0;
-  dropBayDelayTime = 5000;
+
 
   //initialize serial commuication to Xbee.  While loop is to enter bypass
   //If this fails all communication will fail, and the control will not work at all (I believe)
@@ -76,17 +74,20 @@ void Communicator::recieveCommands() {
     //new command detected, parse and execute
     byte incomingByte = XBEE_SERIAL.read();
     DEBUG_PRINT("Received a command");
-    //check to make sure hardware is connected before atempting to write values
 
     //drop bay
     if (dropBayAttached) {
       if (incomingByte == 'P') {
-        dropBayServoPos = DROP_BAY_OPEN;
+
+        //use this to toggle the dropbay
+        if(dropBayServoPos == DROP_BAY_OPEN)
+            dropBayServoPos = DROP_BAY_CLOSED;
+        else
+            dropBayServoPos = DROP_BAY_OPEN;
+        
         sendMessage(MESSAGE_DROP_ACK);
         dropServo.writeMicroseconds(dropBayServoPos);
         altitudeAtDrop = altitude;
-        dropBayOpen = 1;
-        closeDropBayTime = millis() + dropBayDelayTime;
       }
     }
 
