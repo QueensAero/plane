@@ -7,7 +7,6 @@
 #define SPARE_OUT_PIN 13
 //#define DROP_OUT_PIN 10  //note this is done by communicator class
 
-
 //INPUT pins (as labelled on PCB). These labels are misleading/innaccurate
 #define PID_MODE_INPUT 7
 #define PITCH_INPUT 8
@@ -18,9 +17,9 @@
  
 //define Demixing constants 
 #define FLIP_LEFT_SIGNAL false
-#define FLIP_RIGHT_SIGNAL false
-#define LEFT_SIGNAL_OFFSET 100
-#define RIGHT_SIGNAL_OFFSET 100
+#define FLIP_RIGHT_SIGNAL true
+#define LEFT_SIGNAL_OFFSET 0
+#define RIGHT_SIGNAL_OFFSET -150
 
 //system timing variables in microseconds
 #define SLOW_LOOP_TIME 250    //Xbee send packets of data 
@@ -30,4 +29,3 @@
 
 //hardware declerations
 #define STATUS_LED_PIN 50
-
