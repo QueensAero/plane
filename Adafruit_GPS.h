@@ -1,29 +1,29 @@
 /***********************************
-This is the Adafruit GPS library - the ultimate GPS library
-for the ultimate GPS module!
+  This is the Adafruit GPS library - the ultimate GPS library
+  for the ultimate GPS module!
 
-Tested and works great with the Adafruit Ultimate GPS module
-using MTK33x9 chipset
+  Tested and works great with the Adafruit Ultimate GPS module
+  using MTK33x9 chipset
     ------> http://www.adafruit.com/products/746
-Pick one up today at the Adafruit electronics shop 
-and help support open source hardware & software! -ada
+  Pick one up today at the Adafruit electronics shop
+  and help support open source hardware & software! -ada
 
-Adafruit invests time and resources providing this open source code, 
-please support Adafruit and open-source hardware by purchasing 
-products from Adafruit!
+  Adafruit invests time and resources providing this open source code,
+  please support Adafruit and open-source hardware by purchasing
+  products from Adafruit!
 
-Written by Limor Fried/Ladyada  for Adafruit Industries.  
-BSD license, check license.txt for more information
-All text above must be included in any redistribution
+  Written by Limor Fried/Ladyada  for Adafruit Industries.
+  BSD license, check license.txt for more information
+  All text above must be included in any redistribution
 ****************************************/
-// Fllybob added lines 34,35 and 40,41 to add 100mHz logging capability 
+// Fllybob added lines 34,35 and 40,41 to add 100mHz logging capability
 
 #ifndef _ADAFRUIT_GPS_H
 #define _ADAFRUIT_GPS_H
 
 
 //Ryan's defined commands. Checksums calculated using http://www.hhhh.org/wiml/proj/nmeaxor.html
-//Some of these are identical to existing ones. Some are these aren't used. 
+//Some of these are identical to existing ones. Some are these aren't used.
 #define SET_BAUD_TO_115200 "$PMTK251,115200*1F"  //note print'ln' adds the <CR><LF> part automatically in sendCommand function
 #define SET_BAUD_TO_57600 "$PMTK251,57600*2C"
 #define SET_NMEA_UPDATE_RATE_10HZ "$PMTK220,100*2F"  //this may or may not also do the fix rate
@@ -45,7 +45,6 @@ All text above must be included in any redistribution
 #define PMTK_API_SET_FIX_CTL_1HZ  "$PMTK300,1000,0,0,0,0*1C"
 #define PMTK_API_SET_FIX_CTL_5HZ  "$PMTK300,200,0,0,0,0*2F"
 // Can't fix position faster than 5 times a second!
-
 
 
 #define PMTK_SET_BAUD_57600 "$PMTK251,57600*2C"
@@ -82,29 +81,26 @@ All text above must be included in any redistribution
 // ask for the release and version
 #define PMTK_Q_RELEASE "$PMTK605*31"
 
-// request for updates on antenna status 
-#define PGCMD_ANTENNA "$PGCMD,33,1*6C" 
-#define PGCMD_NOANTENNA "$PGCMD,33,0*6D" 
+// request for updates on antenna status
+#define PGCMD_ANTENNA "$PGCMD,33,1*6C"
+#define PGCMD_NOANTENNA "$PGCMD,33,0*6D"
 
 // how long to wait when we're looking for a response
 #define MAXWAITSENTENCE 5
 
 #include "Arduino.h"
 
-
 class Adafruit_GPS {
- public:
+  public:
 
     //constructors
     Adafruit_GPS();
-  
+
     //functions still used
     void init();
     uint8_t parseHex(char c);
     boolean parse(char *);
-  
-    
-  
+
     uint8_t hour, minute, seconds, year, month, day;
     uint16_t milliseconds;
     // Floating point latitude and longitude value in degrees.
@@ -121,18 +117,17 @@ class Adafruit_GPS {
     uint8_t fixquality, satellites;
 
     /* Functions and Variables no longer used
-    void pause(boolean b);
-    void sendCommand(const char *);
-    boolean wakeup(void);
-    boolean standby(void);
-    boolean waitForSentence(const char *wait, uint8_t max = MAXWAITSENTENCE);
-    boolean LOCUS_StartLogger(void);
-    boolean LOCUS_StopLogger(void);
-    boolean LOCUS_ReadStatus(void);
-  
-    uint16_t LOCUS_serial, LOCUS_records;
-    uint8_t LOCUS_type, LOCUS_mode, LOCUS_config, LOCUS_interval, LOCUS_distance, LOCUS_speed, LOCUS_status, LOCUS_percent;  */
-  
+      void pause(boolean b);
+      void sendCommand(const char *);
+      boolean wakeup(void);
+      boolean standby(void);
+      boolean waitForSentence(const char *wait, uint8_t max = MAXWAITSENTENCE);
+      boolean LOCUS_StartLogger(void);
+      boolean LOCUS_StopLogger(void);
+      boolean LOCUS_ReadStatus(void);
+
+      uint16_t LOCUS_serial, LOCUS_records;
+      uint8_t LOCUS_type, LOCUS_mode, LOCUS_config, LOCUS_interval, LOCUS_distance, LOCUS_speed, LOCUS_status, LOCUS_percent;  */
 
 };
 
