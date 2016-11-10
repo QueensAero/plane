@@ -61,6 +61,23 @@ void Communicator::initialize() {
 
 }
 
+//Function called by main program and receiveCommands function. Toggles Drop Bay
+//src == 1 corresponds to the automatic drop function.
+void Communicator::dropNow(int src) {
+	if(src == 1 && autoDrop == false) //AutoDrop Protection
+		return;
+	
+	//Toggle Drop Bay
+	if (dropBayServoPos == DROP_BAY_OPEN)
+          dropBayServoPos = DROP_BAY_CLOSED;
+	else
+	  dropBayServoPos = DROP_BAY_OPEN;
+
+	sendMessage(MESSAGE_DROP_ACK);
+	dropServo.writeMicroseconds(dropBayServoPos);
+	altitudeAtDrop = altitude;
+}
+
 // Function that is called from main program to receive incoming serial commands from ground station
 // Commands are one byte long, represented as characters for easy reading
 void Communicator::recieveCommands() {
@@ -71,20 +88,18 @@ void Communicator::recieveCommands() {
     byte incomingByte = XBEE_SERIAL.read();
     DEBUG_PRINT("Received a command");
 
-    // Drop bay
+    // Drop bay (Manual Drop)
     if (dropBayAttached) {
-      if (incomingByte == 'P') {
+      if (incomingByte == 'P')
+		  dropNow(0); 
+    }
 
-        // Use this to toggle the dropbay
-        if (dropBayServoPos == DROP_BAY_OPEN)
-          dropBayServoPos = DROP_BAY_CLOSED;
-        else
-          dropBayServoPos = DROP_BAY_OPEN;
-
-        sendMessage(MESSAGE_DROP_ACK);
-        dropServo.writeMicroseconds(dropBayServoPos);
-        altitudeAtDrop = altitude;
-      }
+    //Auto drop (Toggle)
+    if(incomingByte == 's') {
+      if(autoDrop == false)
+        autoDrop = true;
+      else
+        autoDrop = false;
     }
 
     // Reset
