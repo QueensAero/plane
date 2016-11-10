@@ -71,6 +71,7 @@ class Communicator {
     Communicator();
     ~Communicator();
     void initialize();
+    void dropNow(int src);
 
 
     int getDropPin();
@@ -86,6 +87,7 @@ class Communicator {
     boolean newParsedData = false;
     void getSerialDataFromGPS();
     void setupGPS();
+    boolean autoDrop = false;
 
 
     // Functions called by main program each loop
