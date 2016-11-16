@@ -72,11 +72,11 @@ void Communicator::dropNow(int src, int state) {
 	}
 	else {
 	  dropBayServoPos = DROP_BAY_OPEN;
+	  altitudeAtDrop = altitude;
 	  sendMessage(MESSAGE_DROP_OPEN);
 	}
 
 	dropServo.writeMicroseconds(dropBayServoPos);
-	altitudeAtDrop = altitude;
 }
 
 // Function that is called from main program to receive incoming serial commands from ground station
