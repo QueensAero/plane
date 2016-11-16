@@ -4,15 +4,27 @@
 #define R_TAIL_OUT_PIN 4
 #define R_AILERON_OUT_PIN 5
 #define L_AILERON_OUT_PIN 6
-#define SPARE_OUT_PIN 13
+//#define L_FLAP_OUT_PIN 
+//#define R_FLAP_OUT_PIN 
+#define FLAPS_OUT_PIN 13
+//#define SPARE_OUT_PIN 13
 //#define DROP_OUT_PIN 10  // Note this is done by communicator class
 
-// INPUT pins (as labelled on PCB). These labels are misleading/innaccurate
+/* OLD INPUT pins (as labelled on PCB). These labels are misleading/innaccurate
 #define PID_MODE_INPUT 7
 #define PITCH_INPUT 8
 #define ROLL_INPUT 9
 #define FLAP_MODE_INPUT 11
 #define YAW_INPUT 12
+*/
+
+// NEW INPUT pins (as labelled on PCB, and as we use them). These labels are more helpful
+
+#define L_VTAIL_pid_mode_INPUT 7
+#define R_VTAIL_roll_INPUT 8
+#define L_AILERON_flap_mode_INPUT 9
+#define R_AILERON_yaw_INPUT 11
+#define FLAPS_pitch_INPUT 12
 
 // Define Demixing constants
 #define FLIP_LEFT_SIGNAL false
