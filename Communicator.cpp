@@ -50,15 +50,33 @@ void Communicator::initialize() {
   // Start without hardware attached
   dropBayAttached = 0;
 
-  // Initialize serial commuication to Xbee.  While loop is to enter bypass
-  // If this fails all communication will fail, and the control will not work at all (I believe)
+  // Initialize serial commuication to Xbee.  
   XBEE_SERIAL.begin(XBEE_BAUD);  //this is to Xbee
-  int tries = 0;
-  while (!enterBypass() && ++tries < 5); // While until successfully entered bypass. This should only take 1 try
-
+  
   //Setup the GPS
   setupGPS();
 
+}
+
+//Function called by main program and receiveCommands function. Toggles Drop Bay
+//src == 1 corresponds to the automatic drop function.
+//state == 0 closes drop bay. state == 1 opens drop bay.
+void Communicator::dropNow(int src, int state) {
+	if(src == 1 && autoDrop == false) //AutoDrop Protection
+		return;
+	
+	//Open/Close Drop Bay
+	if (state == 0)  {
+          dropBayServoPos = DROP_BAY_CLOSED;
+		  sendMessage(MESSAGE_DROP_CLOSE);
+	}
+	else {
+	  dropBayServoPos = DROP_BAY_OPEN;
+	  altitudeAtDrop = altitude;
+	  sendMessage(MESSAGE_DROP_OPEN);
+	}
+
+	dropServo.writeMicroseconds(dropBayServoPos);
 }
 
 // Function that is called from main program to receive incoming serial commands from ground station
@@ -71,36 +89,40 @@ void Communicator::recieveCommands() {
     byte incomingByte = XBEE_SERIAL.read();
     DEBUG_PRINT("Received a command");
 
-    // Drop bay
+    // Drop bay (Manual Drop)
     if (dropBayAttached) {
-      if (incomingByte == 'P') {
+      if (incomingByte == INCOME_DROP_OPEN)
+		  dropNow(0, 1); 
+	  else if(incomingByte == INCOME_DROP_CLOSE)
+		  dropNow(0, 0);
+    }
 
-        // Use this to toggle the dropbay
-        if (dropBayServoPos == DROP_BAY_OPEN)
-          dropBayServoPos = DROP_BAY_CLOSED;
-        else
-          dropBayServoPos = DROP_BAY_OPEN;
-
-        sendMessage(MESSAGE_DROP_ACK);
-        dropServo.writeMicroseconds(dropBayServoPos);
-        altitudeAtDrop = altitude;
-      }
+    //Auto drop (Toggle)
+    if(incomingByte == INCOME_AUTO) {
+      if(autoDrop == false) {
+        autoDrop = true;
+		sendMessage(MESSAGE_AUTO_ON);
+	  }
+      else {
+        autoDrop = false;
+		sendMessage(MESSAGE_AUTO_OFF);
+	  }
     }
 
     // Reset
-    if (incomingByte == 'r') {  //RESET FUNCTION.
+    if (incomingByte == INCOME_RESET) {  //RESET FUNCTION.
       sendData();  // Flush current data packets
       reset = true;
     }
 
-    if (incomingByte == 'q') {  //RESTART FUNCTION.
+    if (incomingByte == INCOME_RESTART) {  //RESTART FUNCTION.
       sendData();  //Flush current data packets
       restart = true;
       dropBayServoPos = DROP_BAY_CLOSED;
       dropServo.writeMicroseconds(dropBayServoPos);
     }
 
-    if (incomingByte == 'g') {  //SEND ALTITUDE_AT_DROP
+    if (incomingByte == INCOME_DROP_ALT) {  //SEND ALTITUDE_AT_DROP
       XBEE_SERIAL.print("*a");
       XBEE_SERIAL.print(altitudeAtDrop);
       XBEE_SERIAL.print("%ee");
@@ -239,71 +261,6 @@ void Communicator::sendFloat(float toSend) {
   byte *data = (byte*)&toSend; //cast address of float to byte array
   XBEE_SERIAL.write(data, sizeof(toSend));  //send float as 4 bytes
 }
-
-// Send 'B' to enter bypass mode
-boolean Communicator::enterBypass() {
-
-  boolean success = false;
-  success = checkInBypassMode();  // Check before changing baud rate
-
-  // Needs to be at 9600 baud to enter bypass mode
-  XBEE_SERIAL.end();
-  XBEE_SERIAL.begin(9600);
-
-  int numTries = 0, maxNumTries = 3;
-  if (!success) {
-    while (++numTries <= maxNumTries) {
-      sendBypassCommand();
-      success = checkInBypassMode();
-
-      if (success) {
-        break;
-      }
-    }
-  }
-
-  flushInput();
-
-  if (!success) {
-    DEBUG_PRINT("Failed to enter bypass, numtries = ");
-  }
-  else {
-    DEBUG_PRINT("Entered bypass, numtries = ");
-  }
-
-  DEBUG_PRINTLN(numTries);
-
-  XBEE_SERIAL.end();
-  XBEE_SERIAL.begin(XBEE_BAUD);  //restart serial in the set xbee baudrate
-
-  return success;
-
-}
-
-// Max time = 1s
-void Communicator::sendBypassCommand() {
-  flushInput();
-  XBEE_SERIAL.print("B");
-}
-
-// Max time = 1.5s
-// The idea behind this: if in non-bypass mode, every character sent to the xbee is echoed back.
-// So the test is to send a character, and wait. If nothing is received, the test is true (ie. we are in bypass mode)
-// Which is what we want to be in.  If something is received, then it indicates that we need to keep trying to enter bypass mode
-boolean Communicator::checkInBypassMode() {
-
-  flushInput();
-  XBEE_SERIAL.print('@');
-
-  if (delayUntilSerialData(1500)) { //true indicates it got data, which means it's NOT in bypass mode
-    return false;
-  }
-  else {
-    return true;
-  }
-
-}
-
 
 // We could receive more data while flushing the input. So instead of using just 1 call to 'flushInputUntilCurrentTime'  we repeatedly call it until nothing has been flushedthen
 // it's likely very rare this has any effect, but it doesn't hurt

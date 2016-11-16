@@ -6,15 +6,27 @@
 #define DROP_BAY_CLOSED 1100
 #define DROP_BAY_OPEN 1900
 
-// MESSAGE CONSTANTS
+// MESSAGE CONSTANTS -- RECEIVE
+#define INCOME_DROP			'P'
+#define INCOME_AUTO			'a'
+#define INCOME_RESET		'r'
+#define INCOME_RESTART		'q'
+#define INCOME_DROP_ALT		'g'
+#define INCOME_DROP_OPEN    'o'
+#define INCOME_DROP_CLOSE  	'c'
+
+// MESSAGE CONSTANTS -- SEND
 #define MESSAGE_START       's'
 #define MESSAGE_READY       'r'
-#define MESSAGE_DROP        'd'
+#define MESSAGE_DROP_OPEN   'o'
+#define MESSAGE_DROP_CLOSE  'c'
 #define MESSAGE_RESET_AKN   'k'
 #define MESSAGE_RESTART_AKN 'q'
 #define MESSAGE_CAM_RESET   'x'
 #define MESSAGE_ERROR       'e'
 #define MESSAGE_DROP_ACK    'y'
+#define MESSAGE_AUTO_ON		'a'
+#define MESSAGE_AUTO_OFF	'd'
 // Note (Not used anymore): currently in EagleTreeAltimeter the letter 't' is used to indicate an altimeter I2C timeout
 
 // MPU6050 messages
@@ -50,9 +62,7 @@ class Communicator {
 
     int dropBayAttached;
 
-    // These functions help accomplish the enterBypass mode function
-    void sendBypassCommand();
-    boolean checkInBypassMode();
+    // These functions help accomplish the enterBypass mode function --------------- ALL OTHER BYPASS FUNCTIONS REMOVED, ARE THESE STILL REQUIRED??
     void flushInput();
     int flushInputUntilCurrentTime();
     boolean delayUntilSerialData(unsigned long ms_timeout);
@@ -71,6 +81,7 @@ class Communicator {
     Communicator();
     ~Communicator();
     void initialize();
+    void dropNow(int src, int state);
 
 
     int getDropPin();
@@ -86,6 +97,7 @@ class Communicator {
     boolean newParsedData = false;
     void getSerialDataFromGPS();
     void setupGPS();
+    boolean autoDrop = false;
 
 
     // Functions called by main program each loop
@@ -99,8 +111,6 @@ class Communicator {
     // examples: START, READY, RESET AKNOLAGED, DROP
     void sendMessage(char message); // Takes single standard character that is a code for standard message - see definitions above
 
-    // Ensure the XBee enters Bypass mode. If this fails, ALL communication will be non-functional
-    boolean enterBypass();
 
     // Calibration code  (no longer used but left for reference)
     //void calibrate();
