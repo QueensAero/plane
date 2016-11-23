@@ -16,6 +16,7 @@
 #define INCOME_DROP_CLOSE  	'c'
 
 // MESSAGE CONSTANTS -- SEND
+// Note: 'a' is taken as it indicates a drop altitude packet
 #define MESSAGE_START       's'
 #define MESSAGE_READY       'r'
 #define MESSAGE_DROP_OPEN   'o'
@@ -25,7 +26,7 @@
 #define MESSAGE_CAM_RESET   'x'
 #define MESSAGE_ERROR       'e'
 #define MESSAGE_DROP_ACK    'y'
-#define MESSAGE_AUTO_ON		'a'
+#define MESSAGE_AUTO_ON		'b'
 #define MESSAGE_AUTO_OFF	'd'
 // Note (Not used anymore): currently in EagleTreeAltimeter the letter 't' is used to indicate an altimeter I2C timeout
 
