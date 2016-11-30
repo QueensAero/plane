@@ -43,8 +43,7 @@ void Communicator::initialize() {
 
   // Set initial values to 0
   altitude = 0;
-  roll = 0;
-  pitch = 0;
+  //roll = 0;  pitch = 0;
   altitudeAtDrop = 0;
 
   // Start without hardware attached
@@ -72,7 +71,7 @@ void Communicator::dropNow(int src, int state) {
 	}
 	else {
 	  dropBayServoPos = DROP_BAY_OPEN;
-	  altitudeAtDrop = altitude;
+	  altitudeAtDrop = altitude;   //TODO - worry is that if tell the drop bay to open agaom (after it's already been opened) this will be overwritten. Do we care about the FIRST drop?
 	  sendMessage(MESSAGE_DROP_OPEN);
 	}
 
@@ -92,21 +91,22 @@ void Communicator::recieveCommands() {
     // Drop bay (Manual Drop)
     if (dropBayAttached) {
       if (incomingByte == INCOME_DROP_OPEN)
-		  dropNow(0, 1); 
-	  else if(incomingByte == INCOME_DROP_CLOSE)
-		  dropNow(0, 0);
+		    dropNow(0, 1); 
+	    else if(incomingByte == INCOME_DROP_CLOSE)
+		    dropNow(0, 0);
     }
 
     //Auto drop (Toggle)
+    //TODO - change from toggle to On or Off message (similar to drop command change?)
     if(incomingByte == INCOME_AUTO) {
-      if(autoDrop == false) {
-        autoDrop = true;
-		sendMessage(MESSAGE_AUTO_ON);
-	  }
-      else {
-        autoDrop = false;
-		sendMessage(MESSAGE_AUTO_OFF);
-	  }
+        if(autoDrop == false) {
+          autoDrop = true;
+		      sendMessage(MESSAGE_AUTO_ON);
+	      }
+        else {
+          autoDrop = false;
+		      sendMessage(MESSAGE_AUTO_OFF);
+	      }
     }
 
     // Reset
@@ -221,10 +221,10 @@ void Communicator::sendData() {
     XBEE_SERIAL.print(GPS.seconds);	//3
     XBEE_SERIAL.print("ee"); */
 
-  // Change to:  (total of 35 bytes)
+  // Change to:  (total of 27 (35) bytes)
   XBEE_SERIAL.print("*p");
-  sendFloat((float)roll);
-  sendFloat((float)pitch);
+  //sendFloat((float)roll);  //No longer send
+  //sendFloat((float)pitch); //No longer send
   sendFloat((float)altitude);
   sendFloat(GPS.speed);
   sendFloat(GPS.latitude);

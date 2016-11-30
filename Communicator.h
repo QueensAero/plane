@@ -40,7 +40,7 @@
 // #define Servo pins
 #define DROP_PIN 10
 
-#define XBEE_BAUD 57600
+#define XBEE_BAUD 115200
 #define SERIAL_USB_BAUD 9600   // This actually doesn't matter - over USB it defaults to some high baudrate
 #define XBEE_SERIAL Serial3
 
@@ -63,7 +63,7 @@ class Communicator {
 
     int dropBayAttached;
 
-    // These functions help accomplish the enterBypass mode function --------------- ALL OTHER BYPASS FUNCTIONS REMOVED, ARE THESE STILL REQUIRED??
+    // These functions help accomplish the enterBypass mode function --------------- ALL OTHER BYPASS FUNCTIONS REMOVED, ARE THESE STILL REQUIRED?? Leave for now..
     void flushInput();
     int flushInputUntilCurrentTime();
     boolean delayUntilSerialData(unsigned long ms_timeout);
@@ -77,7 +77,7 @@ class Communicator {
 
   public:
 
-    double altitude, roll, pitch;
+    double altitude;  //, roll, pitch;
 
     Communicator();
     ~Communicator();
