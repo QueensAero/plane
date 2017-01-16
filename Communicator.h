@@ -1,6 +1,11 @@
+#ifndef _COMMUNICATOR_H
+#define _COMMUNICATOR_H
+
 #include "Arduino.h"
 #include <Servo.h>
 #include "Adafruit_GPS.h"
+#include "plane.h"
+#include "Targeter.h"
 
 // Drop Bay Servo Details.
 #define DROP_BAY_CLOSED 1100
@@ -41,8 +46,8 @@
 #define DROP_PIN 10
 
 #define XBEE_BAUD 115200
-#define SERIAL_USB_BAUD 9600   // This actually doesn't matter - over USB it defaults to some high baudrate
-#define XBEE_SERIAL Serial3
+#define SERIAL_USB_BAUD 115200  // This actually doesn't matter - over USB it defaults to some high baudrate
+#define XBEE_SERIAL Serial3   //Serial3
 
 // GPS constants
 #define MAXLINELENGTH 120
@@ -54,16 +59,18 @@
 class Communicator {
 
   private:
-    int dropServoPin;
-    int dropBayServoPos;
-
-    double altitudeAtDrop;
-
+    int dropBayServoPos; 
     Servo dropServo;
 
-    int dropBayAttached;
+    double altitudeAtDrop;
+    unsigned long timeAtDrop;
 
-    // These functions help accomplish the enterBypass mode function --------------- ALL OTHER BYPASS FUNCTIONS REMOVED, ARE THESE STILL REQUIRED?? Leave for now..
+    //Initialize XBee by starting communication and putting in transparent mode
+    bool initXBee();
+    bool sendCmdAndWaitForOK(String cmd, int timeout = 3000); //3 second as default timeout
+    
+
+    // These functions help accomplish the enterBypass mode function --------------- ALL OTHER BYPASS FUNCTIONS REMOVED, ARE THESE STILL REQUIRED??
     void flushInput();
     int flushInputUntilCurrentTime();
     boolean delayUntilSerialData(unsigned long ms_timeout);
@@ -77,15 +84,14 @@ class Communicator {
 
   public:
 
-    double altitude;  //, roll, pitch;
+    double altitude, roll, pitch;
 
     Communicator();
     ~Communicator();
     void initialize();
     void dropNow(int src, int state);
-
-
-    int getDropPin();
+    
+    
     int waiting_for_message = false;
     int calibration_flag = false;
 
@@ -98,15 +104,14 @@ class Communicator {
     boolean newParsedData = false;
     void getSerialDataFromGPS();
     void setupGPS();
-    boolean autoDrop = false;
+    boolean autoDrop = true;  //TEMPORARY
 
 
     // Functions called by main program each loop
     void recieveCommands();  // When drop command is received set altitude at drop
     void sendData();  // Send current altitude, altitude at drop, roll, pitch, airspeed
-
-    // Functions to attach sensors and motors
-    void attachDropBay(int _dropServoPin);
+    void checkToCloseDropBay(void);  //Close drop bay after 10 seconds of being open (MAYBE NOT NEEDED)
+    void recalculateTargettingNow(boolean withNewData);  //Check GPS data vs. target to see if we should drop
 
     // Function to send standard message to ground station
     // examples: START, READY, RESET AKNOLAGED, DROP
@@ -117,3 +122,5 @@ class Communicator {
     //void calibrate();
 
 };
+
+#endif //_COMMUNICATOR_H

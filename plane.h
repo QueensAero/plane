@@ -1,3 +1,6 @@
+#ifndef _PLANE_H
+#define _PLANE_H
+
 // OUTPUT pins (as labelled on PCB)
 #define RUDDER_OUT_PIN 2
 #define L_TAIL_OUT_PIN 3
@@ -28,3 +31,19 @@
 
 // Hardware declerations
 #define STATUS_LED_PIN 50
+
+// ------------------------------------ DROP BAY ------------------------------------
+
+const int closeDropBayTimeout = 10000;
+
+// ------------------------------------ TARGETING ------------------------------------
+
+// Format: dd° mm.mmmm'
+const double targetLatitude = 4413.7167;
+const double targetLongitude = -7629.4883;
+// 4413.7167N, -7629.4883W = Behind ILC
+
+const double targetAltitude = 0; // meters
+const double targetRaduis = 30; // meters
+
+#endif //_PLANE_H

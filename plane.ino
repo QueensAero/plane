@@ -42,7 +42,7 @@ unsigned long prev_slow_time, prev_medium_time, prev_long_time;
 
 void setup() {
 
-  // Do this first so servos are good regardless
+  // Do this first so servos are hopefully good regardless if below fails/times out/gets 'stuck'
   initializeServos();
 
   // Start up serial communicator
@@ -51,9 +51,6 @@ void setup() {
 
   comm.initialize();
   comm.sendMessage(MESSAGE_START);
-
-  // Attach servos that are controlled directly by communicator
-  comm.attachDropBay(DROP_PIN);
 
   // Initialize Data Acquisition System (which also preforms a DAS reset)
   initializeDAS();
@@ -160,14 +157,14 @@ void slowLoop() {
 
   //unsigned long loopStartTime = millis(); // For testing timing
 
-  // Get latest telementary data
+  // Get latest altitude data
   double altitudeReadIn = altimeter.getAltitude(false);
 
   // Altitude = -999 means a timeout occured
   if (altitudeReadIn > -990) {
 
-    //SerialUSB.print("Raw in: ");
-    //SerialUSB.println(altitudeReadIn);
+    SerialUSB.print("Raw in: ");
+    SerialUSB.println(altitudeReadIn);
 
     if (!didGetZeroAltitudeLevel) {
       didGetZeroAltitudeLevel = true;
@@ -189,6 +186,8 @@ void slowLoop() {
 
   // Send data to XBee
   comm.sendData();
+
+  comm.checkToCloseDropBay();
 
   // Check for reset flag
   if (comm.reset == true) {
