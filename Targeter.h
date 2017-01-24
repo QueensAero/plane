@@ -43,6 +43,9 @@ class Targeter {
     double targetLatitude = 0;
     double targetLongitude = 0;
 
+    double targetEasting;
+    double targetNorthing;
+
     double targetAltitude = 0; // m
 
     // ------------------------------------ CALCULATED POSITION ------------------------------------
