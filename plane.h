@@ -47,7 +47,6 @@ const int closeDropBayTimeout = 10000;
 #define TARGET_LONG -7629.518
 #define TARGET_ALTITUDE 0
 // 4413.682, -77629.518 = Passage between ILC and Walter Light Hall
-//const double targetAltitude = 0; // meters
 
 const double targetRaduis = 20; // meters
 

@@ -45,7 +45,6 @@ class Targeter {
     double targetAltitude; // m
     double targetEasting, targetNorthing;
 
-
     // ------------------------------------ CALCULATED POSITION ------------------------------------
 
     // Calculated values

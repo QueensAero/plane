@@ -35,7 +35,6 @@ static float velocities[] = {10, 20, 30, 40, 50};
 static float headings[] = {360, 360, 360, 360, 360};
 
 #define NUM_TARGETER_DATAPTS sizeof(GPSLatitudes) / sizeof(GPSLatitudes[0])
-
 #endif
 
 // Function called in void setup() that instantiates all the variables, attaches pins, ect
@@ -62,7 +61,7 @@ void Communicator::initialize() {
   dropServo.writeMicroseconds(dropBayServoPos);
 
   int maxTries = 3, numTries = 0;
-  while(!initXBee() && ++numTries <= maxTries);  //Keep trying to put into transparent mode until failure
+  while (!initXBee() && ++numTries <= maxTries); //Keep trying to put into transparent mode until failure
 
   //Setup the GPS
   setupGPS();
@@ -74,17 +73,17 @@ bool Communicator::initXBee()
 {
   // Initialize serial commuication to Xbee.
   XBEE_SERIAL.begin(XBEE_BAUD);  //this is to Xbee
-  while(!XBEE_SERIAL);  //wait until it's ready
+  while (!XBEE_SERIAL); //wait until it's ready
 
 
   //Put into command mode, switch to transparent (not API) mode, then exit command mode
-  if(!sendCmdAndWaitForOK("+++"))
-  {    
+  if (!sendCmdAndWaitForOK("+++"))
+  {
     DEBUG_PRINTLN("Failed on '+++'");
     return false;
   }
 
-  if(!sendCmdAndWaitForOK("ATAP0\r"))
+  if (!sendCmdAndWaitForOK("ATAP0\r"))
   {
     DEBUG_PRINTLN("Failed on 'ATAP0'");
     return false;
@@ -94,10 +93,10 @@ bool Communicator::initXBee()
   //sendCmdAndWaitForOK("ATID\r");  //To check network ID
 
 
-  if(!sendCmdAndWaitForOK("ATCN\r"))
+  if (!sendCmdAndWaitForOK("ATCN\r"))
   {
     DEBUG_PRINTLN("Failed on 'ATCN'");
-    return false;  
+    return false;
   }
 
 
@@ -108,7 +107,7 @@ bool Communicator::initXBee()
 bool Communicator::sendCmdAndWaitForOK(String cmd, int timeout)
 {
   //Flush input
-  while(XBEE_SERIAL.read() != -1);
+  while (XBEE_SERIAL.read() != -1);
 
   //Send Command
   XBEE_SERIAL.print(cmd);
@@ -121,10 +120,10 @@ bool Communicator::sendCmdAndWaitForOK(String cmd, int timeout)
   DEBUG_PRINT("Response: ");
   DEBUG_PRINTLN(response);
 
-  if(response.endsWith("OK"))
+  if (response.endsWith("OK"))
     return true;
   else
-    return false;  
+    return false;
 }
 
 
@@ -132,7 +131,7 @@ bool Communicator::sendCmdAndWaitForOK(String cmd, int timeout)
 //src == 1 corresponds to the automatic drop function.
 //state == 0 closes drop bay. state == 1 opens drop bay.
 void Communicator::dropNow(int src, int state) {
-  
+ 
   #ifdef Targeter_Test
     DEBUG_PRINTLN("");
     DEBUG_PRINTLN("[AUTO DROP]");
@@ -163,6 +162,7 @@ void Communicator::dropNow(int src, int state) {
       DEBUG_PRINT(state);
       DEBUG_PRINTLN(")");
     #endif
+
     digitalWrite(STATUS_LED_PIN, LOW);
     dropBayServoPos = DROP_BAY_CLOSED;
     sendMessage(MESSAGE_DROP_CLOSE);
@@ -278,7 +278,6 @@ void Communicator::recieveCommands() {
       dropNow(0, 1);
     else if (incomingByte == INCOME_DROP_CLOSE)
       dropNow(0, 0);
-    
 
     // Turn ON auto drop
     if (incomingByte == INCOME_AUTO_ON) {
@@ -302,7 +301,7 @@ void Communicator::recieveCommands() {
     if (incomingByte == INCOME_RESTART) {  //RESTART FUNCTION.
       sendData();  //Flush current data packets
       restart = true;
-      dropNow(0,0);  //close drop bay
+      dropNow(0, 0); //close drop bay
     }
 
     //Return Altitude at Drop
@@ -319,9 +318,9 @@ void Communicator::recieveCommands() {
 void Communicator::getSerialDataFromGPS() {
 
   while (GPS_SERIAL.available()) {
-    
-  
+     
     nmeaBuf[nmeaBufInd] = GPS_SERIAL.read();
+
     DEBUG_PRINT(nmeaBuf[nmeaBufInd]);
     if (nmeaBuf[nmeaBufInd++] == '\n') { // Increment index after checking if current character signifies the end of a string
       nmeaBuf[nmeaBufInd - 1] = '\0'; // Add null terminating character (note: -1 is because nmeaBufInd is incremented in if statement)
@@ -342,6 +341,8 @@ void Communicator::getSerialDataFromGPS() {
 }
 
 void Communicator::setupGPS() {
+
+  DEBUG_PRINTLN("GPS Initilization...");
 
   // Initialize the variables in GPS class object
   GPS.init();

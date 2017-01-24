@@ -12,12 +12,13 @@
 #define DROP_BAY_OPEN 1900
 
 // MESSAGE CONSTANTS -- RECEIVE
-#define INCOME_DROP			'P'
+
+#define INCOME_DROP			    'P'
 #define INCOME_AUTO_ON			'a'
-#define INCOME_AUTO_OFF      'n'
-#define INCOME_RESET		'r'
-#define INCOME_RESTART		'q'
-#define INCOME_DROP_ALT		'g'
+#define INCOME_AUTO_OFF     'n'
+#define INCOME_RESET		    'r'
+#define INCOME_RESTART		  'q'
+#define INCOME_DROP_ALT		  'g'
 #define INCOME_DROP_OPEN    'o'
 #define INCOME_DROP_CLOSE  	'c'
 
@@ -31,8 +32,9 @@
 #define MESSAGE_RESTART_AKN 'q'
 #define MESSAGE_CAM_RESET   'x'
 #define MESSAGE_DROP_ACK    'y'
-#define MESSAGE_AUTO_ON		'b'
-#define MESSAGE_AUTO_OFF	'd'
+#define MESSAGE_AUTO_ON		  'b'
+#define MESSAGE_AUTO_OFF	  'd'
+
 
 // #define Servo pins
 #define DROP_PIN 10
@@ -60,7 +62,7 @@
 class Communicator {
 
   private:
-    int dropBayServoPos; 
+    int dropBayServoPos;
     Servo dropServo;
 
     double altitudeAtDrop;
@@ -80,16 +82,13 @@ class Communicator {
   public:
 
     int currentTargeterDataPoint = -1;  //used for testing targeter
-
-
+    
     double altitude, roll, pitch;
 
     Communicator();
     ~Communicator();
     void initialize();
     void dropNow(int src, int state);
-    
-    
 
     boolean reset;
     boolean restart;
