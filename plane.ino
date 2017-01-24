@@ -58,6 +58,10 @@ void setup() {
   // Setup hardware that is controlled directly in the main loop
   blinkState = 0;
   pinMode(STATUS_LED_PIN, OUTPUT);
+  digitalWrite(STATUS_LED_PIN, LOW);
+
+  pinMode(HEARTBEAT_LED_PIN, OUTPUT);
+  digitalWrite(HEARTBEAT_LED_PIN, LOW);
 
   // Start system time
   prev_medium_time = millis();
@@ -181,6 +185,10 @@ void slowLoop() {
 
   //unsigned long loopEndTime = millis(); //for testing timing
 
+  #ifdef Targeter_Test
+    comm.recalculateTargettingNow(true);
+  #endif
+
   // Pass new data to serial communicator
   comm.altitude = altitude;
 
@@ -211,7 +219,7 @@ void slowLoop() {
 
 void longLoop() {
   blinkState = !blinkState;
-  digitalWrite(STATUS_LED_PIN, blinkState);
+  digitalWrite(HEARTBEAT_LED_PIN, blinkState);
 }
 
 //TODO: which pwm_high_time values correspond to the left/right signals? (in first two lines in function)
@@ -288,7 +296,7 @@ void resetDAS() {
 
   // Turn off LED when reseting DAS
   // When it resumes blinking, we know the reset has finished
-  digitalWrite(STATUS_LED_PIN, LOW);
+  digitalWrite(HEARTBEAT_LED_PIN, LOW);
 
   // Call individual reset functions for all the sensors
   // GPS doesn't retain status information (so don't need to reset). If we filter heading/speed in the future will need to do this
