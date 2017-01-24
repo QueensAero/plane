@@ -12,11 +12,12 @@
 #define DROP_BAY_OPEN 1900
 
 // MESSAGE CONSTANTS -- RECEIVE
-#define INCOME_DROP			'P'
-#define INCOME_AUTO			'a'
-#define INCOME_RESET		'r'
-#define INCOME_RESTART		'q'
-#define INCOME_DROP_ALT		'g'
+#define INCOME_DROP			    'P'
+#define INCOME_AUTO_ON			'a'
+#define INCOME_AUTO_OFF     'n'
+#define INCOME_RESET		    'r'
+#define INCOME_RESTART		  'q'
+#define INCOME_DROP_ALT		  'g'
 #define INCOME_DROP_OPEN    'o'
 #define INCOME_DROP_CLOSE  	'c'
 
@@ -31,8 +32,8 @@
 #define MESSAGE_CAM_RESET   'x'
 #define MESSAGE_ERROR       'e'
 #define MESSAGE_DROP_ACK    'y'
-#define MESSAGE_AUTO_ON		'b'
-#define MESSAGE_AUTO_OFF	'd'
+#define MESSAGE_AUTO_ON		  'b'
+#define MESSAGE_AUTO_OFF	  'd'
 // Note (Not used anymore): currently in EagleTreeAltimeter the letter 't' is used to indicate an altimeter I2C timeout
 
 // MPU6050 messages
@@ -59,7 +60,7 @@
 class Communicator {
 
   private:
-    int dropBayServoPos; 
+    int dropBayServoPos;
     Servo dropServo;
 
     double altitudeAtDrop;
@@ -68,7 +69,7 @@ class Communicator {
     //Initialize XBee by starting communication and putting in transparent mode
     bool initXBee();
     bool sendCmdAndWaitForOK(String cmd, int timeout = 3000); //3 second as default timeout
-    
+
 
     // These functions help accomplish the enterBypass mode function --------------- ALL OTHER BYPASS FUNCTIONS REMOVED, ARE THESE STILL REQUIRED??
     void flushInput();
@@ -84,14 +85,16 @@ class Communicator {
 
   public:
 
+    int currentTargeterDataPoint = -1;
+
     double altitude, roll, pitch;
 
     Communicator();
     ~Communicator();
     void initialize();
     void dropNow(int src, int state);
-    
-    
+
+
     int waiting_for_message = false;
     int calibration_flag = false;
 
