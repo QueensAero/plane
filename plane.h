@@ -2,20 +2,23 @@
 #define _PLANE_H
 
 // OUTPUT pins (as labelled on PCB)
-#define RUDDER_OUT_PIN 2
-#define L_TAIL_OUT_PIN 3
-#define R_TAIL_OUT_PIN 4
-#define R_AILERON_OUT_PIN 5
-#define L_AILERON_OUT_PIN 6
-#define SPARE_OUT_PIN 13
-//#define DROP_OUT_PIN 10  // Note this is done by communicator class
+#define TAIL_WHEEL_OUT 2
+#define LEFT_VTAIL_OUT 3
+#define RIGHT_VTAIL_OUT 4
+#define LEFT_AILERON_OUT 5
+#define RIGHT_AILERON_OUT 6
+#define FLAPS_LEFT_OUT 7
+#define FLAPS_RIGHT_OUT 8
+//DROP SERVO DEFINED IN COMMUNICATOR.H
+#define SPARE_OUT 9
 
-// INPUT pins (as labelled on PCB). These labels are misleading/innaccurate
-#define PID_MODE_INPUT 7
-#define PITCH_INPUT 8
-#define ROLL_INPUT 9
-#define FLAP_MODE_INPUT 11
-#define YAW_INPUT 12
+
+// INPUT pins (as labelled on PCB).
+#define RIGHT_VTAIL_IN 12
+#define LEFT_VTAIL_IN 11
+#define LEFT_AILERON_IN 40
+#define RIGHT_AILERON_IN 42
+#define FLAPS_IN 50
 
 // Define Demixing constants
 #define FLIP_LEFT_SIGNAL false
@@ -30,7 +33,8 @@
 #define LONG_LOOP_TIME 500 	  // LED blinking
 
 // Hardware declerations
-#define STATUS_LED_PIN 50
+#define HEARTBEAT_LED_PIN 50
+#define STATUS_LED_PIN 13
 
 // ------------------------------------ DROP BAY ------------------------------------
 
@@ -39,11 +43,36 @@ const int closeDropBayTimeout = 10000;
 // ------------------------------------ TARGETING ------------------------------------
 
 // Format: dd° mm.mmmm'
-const double targetLatitude = 4413.7167;
-const double targetLongitude = -7629.4883;
-// 4413.7167N, -7629.4883W = Behind ILC
+#define TARGET_LATT 4413.682
+#define TARGET_LONG -7629.518
+#define TARGET_ALTITUDE 0
+// 4413.682, -77629.518 = Passage between ILC and Walter Light Hall
+//const double targetAltitude = 0; // meters
 
-const double targetAltitude = 0; // meters
-const double targetRaduis = 30; // meters
+const double targetRaduis = 20; // meters
+
+
+// -------------------------------------------- DEBUG --------------------------------------------
+
+// During testing we might want to send over USB to computer. Instead of commenting out a lot of  'SerialUSB.print(...)' statements we can define a macro as below
+// If the line directly below is NOT commented out, then DEGUB_PRINT(...) will send to computer. If it is commented out, the macro DEBUG_PRINT/LN will be empty and
+// the compiler will optimize it out of the code automatically
+#define DEBUG_COMMUNICATOR
+#define DEBUG_SERIAL_BAUD 115200  // This actually doesn't matter - over USB it defaults to some high baudrate
+
+
+#ifdef DEBUG_COMMUNICATOR
+#define DEBUG_SERIAL Serial
+#define DEBUG_PRINT(x) DEBUG_SERIAL.print(x)
+#define DEBUG_PRINTLN(x) DEBUG_SERIAL.println(x)
+#define DEBUG_BEGIN(x) DEBUG_SERIAL.begin(x)
+#else
+#define DEBUG_PRINT(x)
+#define DEBUG_PRINTLN(x)
+#define DEBUG_BEGIN(x)
+#endif
+
+//#define Targeter_Test
+// Tests the targeting system with pre-defined GPS datapoints
 
 #endif //_PLANE_H

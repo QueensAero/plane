@@ -39,11 +39,12 @@ class Targeter {
 
     // ------------------------------------ TARGET POSITION ------------------------------------
 
-    // Format: dd° mm.mmmm'
-    double targetLatitude = 0;
-    double targetLongitude = 0;
+    // Format: dd° mm.mmmm' - These are initialized through 'setTargetData' function
+    double targetLatitude;
+    double targetLongitude;
+    double targetAltitude; // m
+    double targetEasting, targetNorthing;
 
-    double targetAltitude = 0; // m
 
     // ------------------------------------ CALCULATED POSITION ------------------------------------
 
@@ -53,12 +54,13 @@ class Targeter {
 
     // ------------------------------------ PHYSICAL CALCULATIONS ------------------------------------
 
-    double calculateLateralError(void);
-    double calculateDirectDistanceToTarget(void);
-    double calculatePathDistanceToTarget(void);
-    double calculateDropDistance(void);
-    double calculateTimeToDrop(void);
-    double dropDistanceToTarget(void);
+    double calculateLateralError(void);   //On current heading, what is the closest we come to target
+    double calculateDirectDistanceToTarget(void);  //'As the crow flies', not based on current heading
+    double calculatePathDistanceToTarget(void);   //How far along our path until the point of min distance to target (third side of trianlge, with hyp = calculateDirectDistanceToTarget, opp = lateralError)
+    double calculateDropDistance(void);  //horizontal distance travelled while falling
+    double calculateTimeToDrop(void);   //How long until we should drop
+    double dropDistanceToTarget(void);   //PathDistanceToTarget  -  DropDistance   (ie. If we dropped now, what is dist to point where lateral error is a minimum (and thus DirectDistToTarget is minimum). May be negative is passed 
+                                         //Note this function ignores any 'stale' data assumtions/projecting plane position forward 
 
     // ------------------------------------ CONVERT LAT/LON DEGREES TO UTM COORDINATES ------------------------------------
     

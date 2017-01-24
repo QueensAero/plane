@@ -13,7 +13,8 @@
 
 // MESSAGE CONSTANTS -- RECEIVE
 #define INCOME_DROP			'P'
-#define INCOME_AUTO			'a'
+#define INCOME_AUTO_ON			'a'
+#define INCOME_AUTO_OFF      'n'
 #define INCOME_RESET		'r'
 #define INCOME_RESTART		'q'
 #define INCOME_DROP_ALT		'g'
@@ -21,7 +22,7 @@
 #define INCOME_DROP_CLOSE  	'c'
 
 // MESSAGE CONSTANTS -- SEND
-// Note: 'a' is taken as it indicates a drop altitude packet
+#define DATA_PACKET 'p'
 #define MESSAGE_START       's'
 #define MESSAGE_READY       'r'
 #define MESSAGE_DROP_OPEN   'o'
@@ -29,32 +30,32 @@
 #define MESSAGE_RESET_AKN   'k'
 #define MESSAGE_RESTART_AKN 'q'
 #define MESSAGE_CAM_RESET   'x'
-#define MESSAGE_ERROR       'e'
 #define MESSAGE_DROP_ACK    'y'
 #define MESSAGE_AUTO_ON		'b'
 #define MESSAGE_AUTO_OFF	'd'
-// Note (Not used anymore): currently in EagleTreeAltimeter the letter 't' is used to indicate an altimeter I2C timeout
-
-// MPU6050 messages
-#define MPU6050_READY         '1'
-#define MPU6050_FAILED        '2'
-#define MPU6050_DMP_READY     '3'
-#define MPU6050_DMP_FAILED    '4'
-#define MPU6050_INITIALIZING  '5'
 
 // #define Servo pins
 #define DROP_PIN 10
 
 #define XBEE_BAUD 115200
-#define SERIAL_USB_BAUD 115200  // This actually doesn't matter - over USB it defaults to some high baudrate
 #define XBEE_SERIAL Serial3   //Serial3
 
 // GPS constants
 #define MAXLINELENGTH 120
-#define TX_TO_DISCONNECT 18  // These are where the PCB traces go to. Due to a PCB error, TX went to TX, meaning nothing could to communicate. So we wired to Serial2 pins. But we need to makes sure these get disconnected
-#define RX_TO_DISCONNECT 19
-#define GPS_SERIAL Serial2   // Based on re-wiring of PCB
 #define GPS_BAUD 9600
+//Below GPS vary based on the new PCB or Old PCB
+#define NEW_PCB
+#ifdef NEW_PCB
+    #define TX_TO_DISCONNECT 28 //These pins are unused anyways
+    #define RX_TO_DISCONNECT 29
+    #define GPS_SERIAL Serial1
+#else
+    #define TX_TO_DISCONNECT 18  // These are where the PCB traces go to. Due to a PCB error, TX went to TX, meaning nothing could to communicate. So we wired to Serial2 pins. But we need to makes sure these get disconnected
+    #define RX_TO_DISCONNECT 19
+    #define GPS_SERIAL Serial2   
+#endif
+
+
 
 class Communicator {
 
@@ -68,12 +69,6 @@ class Communicator {
     //Initialize XBee by starting communication and putting in transparent mode
     bool initXBee();
     bool sendCmdAndWaitForOK(String cmd, int timeout = 3000); //3 second as default timeout
-    
-
-    // These functions help accomplish the enterBypass mode function --------------- ALL OTHER BYPASS FUNCTIONS REMOVED, ARE THESE STILL REQUIRED??
-    void flushInput();
-    int flushInputUntilCurrentTime();
-    boolean delayUntilSerialData(unsigned long ms_timeout);
 
     // Sending data
     void sendFloat(float toSend);
@@ -84,6 +79,9 @@ class Communicator {
 
   public:
 
+    int currentTargeterDataPoint = -1;  //used for testing targeter
+
+
     double altitude, roll, pitch;
 
     Communicator();
@@ -92,8 +90,6 @@ class Communicator {
     void dropNow(int src, int state);
     
     
-    int waiting_for_message = false;
-    int calibration_flag = false;
 
     boolean reset;
     boolean restart;
@@ -110,16 +106,12 @@ class Communicator {
     // Functions called by main program each loop
     void recieveCommands();  // When drop command is received set altitude at drop
     void sendData();  // Send current altitude, altitude at drop, roll, pitch, airspeed
-    void checkToCloseDropBay(void);  //Close drop bay after 10 seconds of being open (MAYBE NOT NEEDED)
+    void checkToCloseDropBay(void);  //Close drop bay after 10 seconds of being open
     void recalculateTargettingNow(boolean withNewData);  //Check GPS data vs. target to see if we should drop
 
     // Function to send standard message to ground station
-    // examples: START, READY, RESET AKNOLAGED, DROP
+    // examples: START, READY, RESET ACKNOLEGED
     void sendMessage(char message); // Takes single standard character that is a code for standard message - see definitions above
-
-
-    // Calibration code  (no longer used but left for reference)
-    //void calibrate();
 
 };
 

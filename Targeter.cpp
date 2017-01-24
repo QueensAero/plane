@@ -3,7 +3,10 @@
 #include "plane.h"
 
 Targeter::Targeter() {
-  // Empty constructor
+
+  //initialize target information (UTM coordinates), based on constants defined in plane.h
+  setTargetData(TARGET_LATT, TARGET_LONG, TARGET_ALTITUDE);  //Target UTM is now never recalculated outside 'setTargetData' function
+  
 }
 
 // ------------------------------------ PHYSICAL CALCULATIONS ------------------------------------
@@ -23,12 +26,9 @@ double Targeter::calculateLateralError() {
   // (x0, y0) => targetPos
 
   double currentEasting, currentNorthing;
-  double targetEasting, targetNorthing;
 
   // Get current coordinates
   convertDeg2UTM(convertDecimalDegMinToDegree(currentLatitude), convertDecimalDegMinToDegree(currentLongitude), currentEasting, currentNorthing);
-  // Get target coordinates
-  convertDeg2UTM(convertDecimalDegMinToDegree(targetLatitude), convertDecimalDegMinToDegree(targetLongitude), targetEasting, targetNorthing);
 
   // P1:
   // Generate an arbitrary point to define the line (far enough away to avoid rounding errors)
@@ -67,12 +67,9 @@ double Targeter::calculateLateralError() {
 double Targeter::calculateDirectDistanceToTarget() {
 
   double currentEasting, currentNorthing;
-  double targetEasting, targetNorthing;
 
   // Get current coordinates
   convertDeg2UTM(convertDecimalDegMinToDegree(currentLatitude), convertDecimalDegMinToDegree(currentLongitude), currentEasting, currentNorthing);
-  // Get target coordinates
-  convertDeg2UTM(convertDecimalDegMinToDegree(targetLatitude), convertDecimalDegMinToDegree(targetLongitude), targetEasting, targetNorthing);
 
   double dist = 0;
   // Use pythagorean theorem to calculate distance between curPos and targetPos:
@@ -139,9 +136,11 @@ double Targeter::calculateDropDistance() {
 double Targeter::calculateTimeToDrop() {
   double time;
   double distRemaining = dropDistanceToTarget();
-  // d = do - v*t
+  double adjustedDistRemaining = distRemaining - currentVelocity * ((millis() - currentDataAge) / 1000);  //Account for the fact we want to check for drop condition faster than it updates
+                                               //Assume same heading and velocity, and multiply currentVelocity*tSinceDataReceived
+  
   // t = d/v
-  time = ((distRemaining  - currentVelocity * ((millis() - currentDataAge) / 1000)) / currentVelocity);
+  time = adjustedDistRemaining / currentVelocity;
   return time;
 }
 
@@ -154,7 +153,7 @@ double Targeter::dropDistanceToTarget() {
 boolean Targeter::recalculate() {
   calculateLateralError();  
   calculateTimeToDrop();
-  return dropDistanceToTarget() < targetRaduis;
+  return dropDistanceToTarget() < targetRaduis; //TODO - function that does a more cohesive comparison for drop condition
 }
 
 double Targeter::getLateralError() {
@@ -181,7 +180,7 @@ boolean Targeter::setCurrentData(double _currentLatitude, double _currentLongitu
   calculateLateralError();  
   calculateTimeToDrop();
 
-  return dropDistanceToTarget() < targetRaduis;
+  return dropDistanceToTarget() < targetRaduis;   //TODO - function that does a more cohesive comparison for drop condition
 
 }
 
@@ -189,11 +188,10 @@ void Targeter::setTargetData(double _targetLatitude, double _targetLongitude, do
 
   targetLatitude = _targetLatitude;
   targetLongitude = _targetLongitude;
-
   targetAltitude = _targetAltitude;
 
-  calculateLateralError();  
-  calculateTimeToDrop();
+  //Update Target UTM Coordinates
+  convertDeg2UTM(convertDecimalDegMinToDegree(targetLatitude), convertDecimalDegMinToDegree(targetLongitude), targetEasting, targetNorthing);
 
 }
 

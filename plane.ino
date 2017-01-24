@@ -22,11 +22,13 @@ boolean didGetZeroAltitudeLevel = false;
 byte blinkState;
 
 // Servo declarations
-Servo wheel_servo, left_aileron_servo, right_aileron_servo, left_Vtail_servo, right_Vtail_servo;
+Servo wheel_servo, l_aileron_servo, r_aileron_servo, l_Vtail_servo, r_Vtail_servo, l_flaps_servo, r_flaps_servo;
 
-volatile int pwm_high_time[5];  //In the order of: PID, pitch, roll, flap, yaw
-volatile unsigned long pwm_high_start[5];
-volatile unsigned long pwm_high_end[5];
+volatile int pw_l_vtail= 0, pw_r_vtail= 0, pw_l_aileron= 0, pw_r_aileron= 0, pw_flaps= 0;
+volatile unsigned long pwm_l_vtail_start= 0, pwm_r_vtail_start= 0, pwm_l_aileron_start= 0, pwm_r_aileron_start= 0, pwm_flaps_start= 0;
+volatile unsigned long pwm_l_vtail_end = 0, pwm_r_vtail_end = 0, pwm_l_aileron_end = 0, 
+                       pwm_r_aileron_end = 0, pwm_flaps_end = 0;
+
 
 // This is the best way to declare objects!
 // other ways work but are not robust... sometimes they fail because Arduino compiler is stupid
@@ -42,11 +44,13 @@ unsigned long prev_slow_time, prev_medium_time, prev_long_time;
 
 void setup() {
 
+  DEBUG_BEGIN(DEBUG_SERIAL_BAUD); // This is to computer (this is ok even if not connected to computer)
+
   // Do this first so servos are hopefully good regardless if below fails/times out/gets 'stuck'
   initializeServos();
 
   // Start up serial communicator
-  delay(3000);  // Give the XBee some time to start
+  delay(3000);  // Give the XBee some time to start - SUPPOSEDLY IT CAN CAUSE ERRORS IF SENT DATA BEFORE XBEE READY
   SerialUSB.begin(115200);
 
   comm.initialize();
@@ -58,6 +62,10 @@ void setup() {
   // Setup hardware that is controlled directly in the main loop
   blinkState = 0;
   pinMode(STATUS_LED_PIN, OUTPUT);
+  digitalWrite(STATUS_LED_PIN, LOW);
+
+  pinMode(HEARTBEAT_LED_PIN, OUTPUT);
+  digitalWrite(HEARTBEAT_LED_PIN, LOW);
 
   // Start system time
   prev_medium_time = millis();
@@ -101,38 +109,44 @@ void loop() {
 }
 
 
-// TODO: figure out which pwm_high_time indexes correspond to which signals. Also add any offsets or negative values (if not doing that on controller)
+
+// TODO: possibly flaps swtiching AND checking tail wheel demixing
 void mediumLoop() {
 
-  // These lines write the values obtained through isr for each PWM signal
-  // 0 = Left or right aileron
-  // 1 = Left or right aileron
-  // 2 = Mixed
-  // 3 =
 
-  // Wheel servo (requires demixing the two V tail signals (note: these two should also be used below for left and right VTail
-  if ((pwm_high_time[0] != 0) && (pwm_high_time[1] != 0)) {
-    wheel_servo.writeMicroseconds(tail_wheel_demixing(3, 2)); // Tail_wheel_demixing arguements are leftPin, rightPin.  returns value to write to servo
+  //Recalculate targeting
+  comm.recalculateTargettingNow(false); //(with non-new data - projects forward with time since received GPS data
+
+  if(pw_l_aileron != 0)
+  {
+      l_aileron_servo.writeMicroseconds(pw_l_aileron);
   }
 
-  // Left Vtail
-  if (pwm_high_time[0] != 0) {
-    left_Vtail_servo.writeMicroseconds(pwm_high_time[0]);
+  if(pw_r_aileron != 0)
+  {
+      r_aileron_servo.writeMicroseconds(pw_r_aileron);
   }
 
-  // Right Vtail
-  if (pwm_high_time[2] != 0) {
-    right_Vtail_servo.writeMicroseconds(pwm_high_time[2]);
+  if(pw_l_vtail != 0)
+  {
+      l_Vtail_servo.writeMicroseconds(pw_l_vtail);
   }
 
-  // Left Aileron  (actually right vtail)
-  if (pwm_high_time[1] != 0) {
-    left_aileron_servo.writeMicroseconds(pwm_high_time[1]);
+  if(pw_r_vtail != 0)
+  {
+      r_Vtail_servo.writeMicroseconds(pw_r_vtail);
   }
 
-  // Right Aileron
-  if (pwm_high_time[3] != 0) {
-    right_aileron_servo.writeMicroseconds(pwm_high_time[3]);
+  //TODO - may need to flip signal for left/right flaps
+  if(pw_flaps != 0)
+  {
+      l_flaps_servo.writeMicroseconds(pw_flaps);
+      r_flaps_servo.writeMicroseconds(pw_flaps);   //ie. arguement map(pw_flaps, 1000, 2000, 2000, 1000); if need to flip
+  }
+
+  if(pw_l_vtail != 0 && pw_r_vtail != 0)
+  {
+    wheel_servo.writeMicroseconds(tail_wheel_demixing(pw_l_vtail, pw_r_vtail));    
   }
 
   /*
@@ -176,10 +190,11 @@ void slowLoop() {
 
   }
 
-  //SerialUSB.print("Altitude: ");
-  //SerialUSB.println(altitude);
-
   //unsigned long loopEndTime = millis(); //for testing timing
+
+  #ifdef Targeter_Test
+    comm.recalculateTargettingNow(true);
+  #endif
 
   // Pass new data to serial communicator
   comm.altitude = altitude;
@@ -211,63 +226,47 @@ void slowLoop() {
 
 void longLoop() {
   blinkState = !blinkState;
-  digitalWrite(STATUS_LED_PIN, blinkState);
+  digitalWrite(HEARTBEAT_LED_PIN, blinkState);
 }
 
-//TODO: which pwm_high_time values correspond to the left/right signals? (in first two lines in function)
-int tail_wheel_demixing(int leftPin, int rightPin) {
-
-  int left_signal = pwm_high_time[leftPin] - LEFT_SIGNAL_OFFSET; // Currently defined as 0 offset. may be subject to change
-  int right_signal = pwm_high_time[rightPin] - RIGHT_SIGNAL_OFFSET; //Same as above
-
-  // These constants are from plane.h -> switch to true if required based on servo. WILL THIS AFFECT THE OFFSET SIGN? (ie. should it be done after?)
-  if (FLIP_LEFT_SIGNAL) {
-    left_signal = map(left_signal, 1000, 2000, 2000, 1000);
-  }
-  if (FLIP_RIGHT_SIGNAL) {
-    right_signal = map(right_signal, 1000, 2000, 2000, 1000);
-  }
-
-  // Use following code to make sure servo is straight. Should obtain 1500 for both left and right signals at rest.
-  //SerialUSB.print(left_signal);   SerialUSB.print(" ");  SerialUSB.println(right_signal);
-
-  return constrain(map((left_signal + right_signal) / 2, 1000, 2000, 2000, 1000), 1000, 2000); //average left and right values, flip them, then constrain to between 1000-2000
-
-  // Was the below before, which returns a degree position instead of microsecond value
-  //return constrain(map(left_signal + right_signal,2000,4000,0,255),0,255);
-}
 
 
 // Initialize servo locations
 void initializeServos() {
 
   // Set pin modes for incoming PWM signals
-  pinMode(PID_MODE_INPUT, INPUT);
-  pinMode(FLAP_MODE_INPUT, INPUT);
-  pinMode(ROLL_INPUT, INPUT);
-  pinMode(YAW_INPUT, INPUT);
-  pinMode(PITCH_INPUT, INPUT);
+  pinMode(LEFT_VTAIL_IN, INPUT);
+  pinMode(RIGHT_VTAIL_IN, INPUT);
+  pinMode(LEFT_AILERON_IN, INPUT);
+  pinMode(RIGHT_AILERON_IN, INPUT);
+  pinMode(FLAPS_IN, INPUT);
 
   // Attach each of the servos (before the interrupts to make sure it's initialized properly).
-  wheel_servo.attach(RUDDER_OUT_PIN);
-  left_aileron_servo.attach(L_AILERON_OUT_PIN);
-  right_aileron_servo.attach(R_AILERON_OUT_PIN);
-  left_Vtail_servo.attach(L_TAIL_OUT_PIN);
-  right_Vtail_servo.attach(R_TAIL_OUT_PIN);
+  wheel_servo.attach(TAIL_WHEEL_OUT);
+  l_aileron_servo.attach(LEFT_AILERON_OUT);
+  r_aileron_servo.attach(RIGHT_AILERON_OUT);
+  l_Vtail_servo.attach(LEFT_VTAIL_OUT);
+  r_Vtail_servo.attach(RIGHT_VTAIL_OUT);
+  l_flaps_servo.attach(FLAPS_LEFT_OUT);
+  r_flaps_servo.attach(FLAPS_RIGHT_OUT);
+
 
   // Apply 1500us neutral position (if drop bay is ever here, this neutral would likely no be ok for it
   wheel_servo.writeMicroseconds(1500);
-  left_aileron_servo.writeMicroseconds(1500);
-  right_aileron_servo.writeMicroseconds(1500);
-  left_Vtail_servo.writeMicroseconds(1500);
-  right_Vtail_servo.writeMicroseconds(1500);
+  l_aileron_servo.writeMicroseconds(1500);
+  r_aileron_servo.writeMicroseconds(1500);
+  l_Vtail_servo.writeMicroseconds(1500);
+  r_Vtail_servo.writeMicroseconds(1500);
+  l_flaps_servo.writeMicroseconds(1500);
+  r_flaps_servo.writeMicroseconds(1500);
+
 
   // Attach interrupts on the rising edge of each input signal
-  attachInterrupt(PID_MODE_INPUT, isr_rising_pid, RISING);
-  attachInterrupt(FLAP_MODE_INPUT, isr_rising_flapMode, RISING);
-  attachInterrupt(ROLL_INPUT, isr_rising_roll, RISING);
-  attachInterrupt(YAW_INPUT, isr_rising_yaw, RISING);
-  attachInterrupt(PITCH_INPUT, isr_rising_pitch, RISING);
+  attachInterrupt(LEFT_VTAIL_IN, isr_rising_l_vtail, RISING);
+  attachInterrupt(RIGHT_VTAIL_IN, isr_rising_r_vtail, RISING);
+  attachInterrupt(LEFT_AILERON_IN, isr_rising_l_aileron, RISING);
+  attachInterrupt(RIGHT_AILERON_IN, isr_rising_r_aileron, RISING);
+  attachInterrupt(FLAPS_IN, isr_rising_flaps, RISING);
 
 
 }
@@ -288,191 +287,224 @@ void resetDAS() {
 
   // Turn off LED when reseting DAS
   // When it resumes blinking, we know the reset has finished
-  digitalWrite(STATUS_LED_PIN, LOW);
+  digitalWrite(HEARTBEAT_LED_PIN, LOW);
 
   // Call individual reset functions for all the sensors
   // GPS doesn't retain status information (so don't need to reset). If we filter heading/speed in the future will need to do this
 
 }
 
-/*6 input signals as labelled on PCB: PID_MODE_INPUT 7, FLAP_MODE_INPUT 11, ROLL_INPUT 9, YAW_INPUT 12, PITCH_INPUT 8
-  The mappings between the labelled inputs to outputs are:
-  PID_MODE_INPUT  ->
-  FLAP_MODE_INPUT ->
-  ROLL_INPUT ->
-  YAW_INPUT ->
-  PITCH_INPUT ->
 
-  NOTE: one of these is not needed (there are 4 outputs directly from these signals, the throttle is shorted, tail wheel comes from demixing L/R Tail signals, 1 is unused and 1 is for dropbay
-    controlled in communicator class.  This brings us to the total of 8 output slots on PCB.
 
-  Only the first set is commented, and all follow those same comments with a different array index
-*/
+//TODO: which pwm_high_time values correspond to the left/right signals? (in first two lines in function)
+int tail_wheel_demixing(int leftSignal, int rightSignal) {
 
-void isr_rising_pid() {
+  leftSignal -= LEFT_SIGNAL_OFFSET; // Currently defined as 0 offset. may be subject to change
+  rightSignal -= RIGHT_SIGNAL_OFFSET; //Same as above
 
+  // These constants are from plane.h -> switch to true if required based on servo. WILL THIS AFFECT THE OFFSET SIGN? (ie. should it be done after?)
+  if (FLIP_LEFT_SIGNAL) {
+    leftSignal = map(leftSignal, 1000, 2000, 2000, 1000);
+  }
+  if (FLIP_RIGHT_SIGNAL) {
+    rightSignal = map(rightSignal, 1000, 2000, 2000, 1000);
+  }
+
+  // Use following code to make sure servo is straight. Should obtain 1500 for both left and right signals at rest.
+  //SerialUSB.print(leftSignal);   SerialUSB.print(" ");  SerialUSB.println(rightSignal);
+
+  return constrain(map((leftSignal + rightSignal) / 2, 1000, 2000, 2000, 1000), 1000, 2000); //average left and right values, flip them, then constrain to between 1000-2000
+
+}
+
+
+
+/*************** RISING ****************/
+
+void isr_rising_r_vtail()
+{
   // Find current time in microseconds
-  pwm_high_start[0] = micros();
+  pwm_r_vtail_start = micros();
 
   // Find difference between this rising edge and last falling edge
-  int time_difference = pwm_high_start[0] - pwm_high_end[0];
+  int low_time = pwm_r_vtail_start - pwm_r_vtail_end;
 
   // If it's been long enough since last falling edge (ie. isn't just debouncing) then attach falling interrupt
-  if (time_difference > 1000) {
-    attachInterrupt(PID_MODE_INPUT, isr_falling_pid, FALLING);
+  if (low_time > 1000) {
+    attachInterrupt(RIGHT_VTAIL_IN, isr_falling_r_vtail, FALLING);
   }
-
+  
 }
 
-void isr_falling_pid() {
-
+void isr_rising_l_vtail()
+{
   // Find current time in microseconds
-  pwm_high_end[0] = micros();
+  pwm_l_vtail_start = micros();
 
-  // Find how long it was high for (in us)
-  int time_difference = pwm_high_end[0] - pwm_high_start[0];
-
-  // If it was high for correct amount of time (in range of servo commands) then save value
-  if (time_difference >= 400 && time_difference <= 2500) {
-    pwm_high_time[0] = time_difference;
-  }
-
-  // Regardless if time ok, attach rising interrupt, to get next duty cycle
-  attachInterrupt(PID_MODE_INPUT, isr_rising_pid, RISING);
-
-}
-
-void isr_rising_flapMode() {
-
-  // Find current time in microseconds
-  pwm_high_start[1] = micros();
-
-  // Find how long it was high for (in us)
-  int time_difference = pwm_high_start[1] - pwm_high_end[1];
+  // Find difference between this rising edge and last falling edge
+  int low_time = pwm_l_vtail_start - pwm_l_vtail_end;
 
   // If it's been long enough since last falling edge (ie. isn't just debouncing) then attach falling interrupt
-  if (time_difference > 1000) {
-    attachInterrupt(FLAP_MODE_INPUT, isr_falling_flapMode, FALLING);
+  if (low_time > 1000) {
+    attachInterrupt(LEFT_VTAIL_IN, isr_falling_l_vtail, FALLING);
   }
-
+  
 }
 
-void isr_falling_flapMode() {
-
+void isr_rising_r_aileron()
+{
   // Find current time in microseconds
-  pwm_high_end[1] = micros();
+  pwm_r_aileron_start = micros();
 
-  // Find how long it was high for (in us)
-  int time_difference = pwm_high_end[1] - pwm_high_start[1];
-
-  // If it was high for correct amount of time (in range of servo commands) then save value
-  if (time_difference >= 400 && time_difference <= 2500) {
-    pwm_high_time[1] = time_difference;
-  }
-
-  // Regardless if time ok, attach rising interrupt, to get next duty cycle
-  attachInterrupt(FLAP_MODE_INPUT, isr_rising_flapMode, RISING);
-
-}
-
-void isr_rising_roll() {
-
-  // Find current time in microseconds
-  pwm_high_start[2] = micros();
-
-  // Find how long it was high for (in us)
-  int time_difference = pwm_high_start[2] - pwm_high_end[2];
+  // Find difference between this rising edge and last falling edge
+  int low_time = pwm_r_aileron_start - pwm_r_aileron_end;
 
   // If it's been long enough since last falling edge (ie. isn't just debouncing) then attach falling interrupt
-  if (time_difference > 1000) {
-    attachInterrupt(ROLL_INPUT, isr_falling_roll, FALLING);
+  if (low_time > 1000) {
+    attachInterrupt(RIGHT_AILERON_IN, isr_falling_r_aileron, FALLING);
   }
-
+  
 }
 
-void isr_falling_roll() {
-
+void isr_rising_l_aileron()
+{
   // Find current time in microseconds
-  pwm_high_end[2] = micros();
+  pwm_l_aileron_start = micros();
 
-  // Find how long it was high for (in us)
-  int time_difference = pwm_high_end[2] - pwm_high_start[2];
-
-  // If it was high for correct amount of time (in range of servo commands) then save value
-  if (time_difference >= 400 && time_difference <= 2500) {
-    pwm_high_time[2] = time_difference;
-  }
-
-  // Regardless if time ok, attach rising interrupt, to get next duty cycle
-  attachInterrupt(ROLL_INPUT, isr_rising_roll, RISING);
-
-}
-
-void isr_rising_yaw() {
-
-  // Find current time in microseconds
-  pwm_high_start[3] = micros();
-
-  // Find how long it was high for (in us)
-  int time_difference = pwm_high_start[3] - pwm_high_end[3];
+  // Find difference between this rising edge and last falling edge
+  int low_time = pwm_l_aileron_start - pwm_l_aileron_end;
 
   // If it's been long enough since last falling edge (ie. isn't just debouncing) then attach falling interrupt
-  if (time_difference > 1000) {
-    attachInterrupt(YAW_INPUT, isr_falling_yaw, FALLING);
+  if (low_time > 1000) {
+    attachInterrupt(LEFT_AILERON_IN, isr_falling_l_aileron, FALLING);
   }
-
+  
 }
 
-void isr_falling_yaw() {
-
+void isr_rising_flaps()
+{
   // Find current time in microseconds
-  pwm_high_end[3] = micros();
+  pwm_flaps_start = micros();
 
-  // Find how long it was high for (in us)
-  int time_difference = pwm_high_end[3] - pwm_high_start[3];
-
-  // If it was high for correct amount of time (in range of servo commands) then save value
-  if (time_difference >= 400 && time_difference <= 2500) {
-    pwm_high_time[3] = time_difference;
-  }
-
-  // Regardless if time ok, attach rising interrupt, to get next duty cycle
-  attachInterrupt(YAW_INPUT, isr_rising_yaw, RISING);
-
-}
-
-void isr_rising_pitch() {
-
-  // Find current time in microseconds
-  pwm_high_start[4] = micros();
-
-  // Find how long it was high for (in us)
-  int time_difference = pwm_high_start[4] - pwm_high_end[4];
+  // Find difference between this rising edge and last falling edge
+  int low_time = pwm_flaps_start - pwm_flaps_end;
 
   // If it's been long enough since last falling edge (ie. isn't just debouncing) then attach falling interrupt
-  if (time_difference > 1000) {
-    attachInterrupt(PITCH_INPUT, isr_falling_pitch, FALLING);
+  if (low_time > 1000) {
+    attachInterrupt(FLAPS_IN, isr_falling_flaps, FALLING);
   }
-
+  
 }
 
-void isr_falling_pitch() {
 
+/*************** FALLING ****************/
+void isr_falling_r_vtail()
+{
   // Find current time in microseconds
-  pwm_high_end[4] = micros();
+  pwm_r_vtail_end = micros();
 
-  // Find how long it was high for (in us)
-  int time_difference = pwm_high_end[4] - pwm_high_start[4];
+  // Find difference between this rising edge and last falling edge
+  int high_time = pwm_r_vtail_end - pwm_r_vtail_start;
 
-  // If it was high for correct amount of time (in range of servo commands) then save value
-  if (time_difference >= 400 && time_difference <= 2500) {
-    pwm_high_time[4] = time_difference;
+  // If it's been long enough since last falling edge (ie. isn't just debouncing) then attach falling interrupt
+  if (high_time > 800 && high_time < 2200) {
+    pw_r_vtail = high_time;
   }
 
-  // Regardless if time ok, attach rising interrupt, to get next duty cycle
-  attachInterrupt(PITCH_INPUT, isr_rising_pitch, RISING);
-
+  attachInterrupt(RIGHT_VTAIL_IN, isr_rising_r_vtail, RISING);
+  
 }
+
+
+void isr_falling_l_vtail()
+{
+
+    // Find current time in microseconds
+  pwm_l_vtail_end = micros();
+
+  // Find difference between this rising edge and last falling edge
+  int high_time = pwm_l_vtail_end - pwm_l_vtail_start;
+
+  // If it's been long enough since last falling edge (ie. isn't just debouncing) then attach falling interrupt
+  if (high_time > 800 && high_time < 2200) {
+    pw_l_vtail = high_time;
+  }
+
+  attachInterrupt(LEFT_VTAIL_IN, isr_rising_l_vtail, RISING);
+  
+}
+
+void isr_falling_r_aileron()
+{
+
+    // Find current time in microseconds
+  pwm_r_aileron_end = micros();
+
+  // Find difference between this rising edge and last falling edge
+  int high_time = pwm_r_aileron_end - pwm_r_aileron_start;
+
+  // If it's been long enough since last falling edge (ie. isn't just debouncing) then attach falling interrupt
+  if (high_time > 800 && high_time < 2200) {
+    pw_r_aileron = high_time;
+  }
+
+  attachInterrupt(RIGHT_AILERON_IN, isr_rising_r_aileron, RISING);
+  
+}
+
+void isr_falling_l_aileron()
+{
+    // Find current time in microseconds
+  pwm_l_aileron_end = micros();
+
+  // Find difference between this rising edge and last falling edge
+  int high_time = pwm_l_aileron_end - pwm_l_aileron_start;
+
+  // If it's been long enough since last falling edge (ie. isn't just debouncing) then attach falling interrupt
+  if (high_time > 800 && high_time < 2200) {
+    pw_l_aileron = high_time;
+  }
+
+  attachInterrupt(LEFT_AILERON_IN, isr_rising_l_aileron, RISING);
+
+  
+}
+
+void isr_falling_flaps()
+{
+
+    // Find current time in microseconds
+  pwm_flaps_end = micros();
+
+  // Find difference between this rising edge and last falling edge
+  int high_time = pwm_flaps_end - pwm_flaps_start;
+
+  // If it's been long enough since last falling edge (ie. isn't just debouncing) then attach falling interrupt
+  if (high_time > 800 && high_time < 2200) {
+    pw_flaps = high_time;
+  }
+
+  attachInterrupt(FLAPS_IN, isr_rising_flaps, RISING);
+  
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 //Interrupt routines for de-mixing of signal. Error checking to ensure the signal is valid.
 /* These are encorporated into the above isr's
