@@ -30,7 +30,8 @@
 #define LONG_LOOP_TIME 500 	  // LED blinking
 
 // Hardware declerations
-#define STATUS_LED_PIN 50
+#define HEARTBEAT_LED_PIN 50
+#define STATUS_LED_PIN 13
 
 // ------------------------------------ DROP BAY ------------------------------------
 
@@ -39,11 +40,32 @@ const int closeDropBayTimeout = 10000;
 // ------------------------------------ TARGETING ------------------------------------
 
 // Format: dd° mm.mmmm'
-const double targetLatitude = 4413.7167;
-const double targetLongitude = -7629.4883;
-// 4413.7167N, -7629.4883W = Behind ILC
+const double targetLatitude = 4413.682;
+const double targetLongitude = -7629.518;
+// 4413.682, -77629.518 = Passage between ILC and Walter Light Hall
 
 const double targetAltitude = 0; // meters
-const double targetRaduis = 30; // meters
+const double targetRaduis = 20; // meters
+
+// -------------------------------------------- DEBUG --------------------------------------------
+
+// During testing we might want to send over USB to computer. Instead of commenting out a lot of  'SerialUSB.print(...)' statements we can define a macro as below
+// If the line directly below is NOT commented out, then DEGUB_PRINT(...) will send to computer. If it is commented out, the macro DEBUG_PRINT/LN will be empty and
+// the compiler will optimize it out of the code automatically
+#define DEBUG_COMMUNICATOR
+
+#ifdef DEBUG_COMMUNICATOR
+#define DEBUG_SERIAL Serial
+#define DEBUG_PRINT(x) DEBUG_SERIAL.print(x)
+#define DEBUG_PRINTLN(x) DEBUG_SERIAL.println(x)
+#define DEBUG_BEGIN(x) DEBUG_SERIAL.begin(x)
+#else
+#define DEBUG_PRINT(x)
+#define DEBUG_PRINTLN(x)
+#define DEBUG_BEGIN(x)
+#endif
+
+//#define Targeter_Test
+// Tests the targeting system with pre-defined GPS datapoints
 
 #endif //_PLANE_H
