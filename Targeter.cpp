@@ -23,18 +23,43 @@ double Targeter::calculateLateralError() {
   // (x0, y0) => targetPos
 
   double currentEasting, currentNorthing;
-  double targetEasting, targetNorthing;
 
   // Get current coordinates
   convertDeg2UTM(convertDecimalDegMinToDegree(currentLatitude), convertDecimalDegMinToDegree(currentLongitude), currentEasting, currentNorthing);
-  // Get target coordinates
-  convertDeg2UTM(convertDecimalDegMinToDegree(targetLatitude), convertDecimalDegMinToDegree(targetLongitude), targetEasting, targetNorthing);
+  //convertDeg2UTM(currentLatitude, currentLongitude, currentEasting, currentNorthing); wrong
+
+#ifdef Targeter_Test
+
+  DEBUG_PRINTLN("");
+  DEBUG_PRINTLN("[LATERAL ERROR CALCULATION]");
+  DEBUG_PRINTLN("");
+
+  DEBUG_PRINT("easting = ");
+  DEBUG_PRINT(currentEasting);
+  DEBUG_PRINT("   northing = ");
+  DEBUG_PRINT(currentNorthing);
+
+  DEBUG_PRINT("   target.easting = ");
+  DEBUG_PRINT(targetEasting);
+  DEBUG_PRINT("   target.northing = ");
+  DEBUG_PRINTLN(targetNorthing);
+
+#endif
 
   // P1:
   // Generate an arbitrary point to define the line (far enough away to avoid rounding errors)
   double currentHeadingMathAngle = convertHeadingToMathAngle(currentHeading);
   double x1 = currentEasting + cos(currentHeadingMathAngle / 180 * PI) * 2000;
   double y1 = currentNorthing + sin(currentHeadingMathAngle / 180 * PI) * 2000;
+
+#ifdef Targeter_Test
+
+  DEBUG_PRINT("x1 = ");
+  DEBUG_PRINT(x1);
+  DEBUG_PRINT("   y1 = ");
+  DEBUG_PRINTLN(y1);
+
+#endif
 
   // P2:
   double x2 = currentEasting;
@@ -51,12 +76,28 @@ double Targeter::calculateLateralError() {
   numerator -= y2 * x1;
   numerator = abs(numerator);
 
+#ifdef Targeter_Test
+
+  DEBUG_PRINT("Numerator = ");
+  DEBUG_PRINTLN(numerator);
+
+#endif
+
   // Calculate denominator in equation:
   double denominator = pow(y2 - y1, 2.0);
   denominator += pow(x2 - x1, 2.0);
   denominator = sqrt(denominator);
 
-  return numerator / denominator;
+#ifdef Targeter_Test
+
+  DEBUG_PRINT("Denominator = ");
+  DEBUG_PRINTLN(denominator);
+
+#endif
+
+  lateralError = numerator / denominator;
+
+  return lateralError;
 }
 
 /*
@@ -137,12 +178,11 @@ double Targeter::calculateDropDistance() {
 */
 
 double Targeter::calculateTimeToDrop() {
-  double time;
   double distRemaining = dropDistanceToTarget();
   // d = do - v*t
   // t = d/v
-  time = ((distRemaining  - currentVelocity * ((millis() - currentDataAge) / 1000)) / currentVelocity);
-  return time;
+  timeToDrop = ((distRemaining  - currentVelocity * ((millis() - currentDataAge) / 1000)) / currentVelocity);
+  return timeToDrop;
 }
 
 double Targeter::dropDistanceToTarget() {
@@ -152,7 +192,7 @@ double Targeter::dropDistanceToTarget() {
 // ------------------------------------ GETTERS ------------------------------------
 
 boolean Targeter::recalculate() {
-  calculateLateralError();  
+  calculateLateralError();
   calculateTimeToDrop();
   return dropDistanceToTarget() < targetRaduis;
 }
@@ -169,6 +209,22 @@ double Targeter::getTimeToDrop() {
 
 boolean Targeter::setCurrentData(double _currentLatitude, double _currentLongitude, double _currentAltitude, double _currentVelocity, double _currentHeading, double _currentDataAge) {
 
+#ifdef Targeter_Test
+  DEBUG_PRINT("Setting current data...(lat = ");
+  DEBUG_PRINT(_currentLatitude);
+  DEBUG_PRINT("   lon = ");
+  DEBUG_PRINT(_currentLongitude);
+  DEBUG_PRINT("   alt = ");
+  DEBUG_PRINT(_currentAltitude);
+  DEBUG_PRINT("   vel = ");
+  DEBUG_PRINT(_currentVelocity);
+  DEBUG_PRINT("   heading = ");
+  DEBUG_PRINT(_currentHeading);
+  DEBUG_PRINT("   age = ");
+  DEBUG_PRINT(_currentDataAge);
+  DEBUG_PRINTLN(")");
+#endif
+
   currentLatitude = _currentLatitude;
   currentLongitude = _currentLongitude;
 
@@ -178,8 +234,21 @@ boolean Targeter::setCurrentData(double _currentLatitude, double _currentLongitu
 
   currentDataAge = _currentDataAge;
 
-  calculateLateralError();  
+  calculateLateralError();
   calculateTimeToDrop();
+
+#ifdef Targeter_Test
+  DEBUG_PRINT("Lateral error = ");
+  DEBUG_PRINTLN(lateralError);
+  DEBUG_PRINT("Time to drop = ");
+  DEBUG_PRINTLN(timeToDrop);
+  DEBUG_PRINT("Drop distance = ");
+  DEBUG_PRINTLN(dropDistanceToTarget());
+  DEBUG_PRINT("Distance to target = ");
+  DEBUG_PRINTLN(calculatePathDistanceToTarget());
+  DEBUG_PRINT("Target radius = ");
+  DEBUG_PRINTLN(targetRaduis);
+#endif
 
   return dropDistanceToTarget() < targetRaduis;
 
@@ -192,7 +261,10 @@ void Targeter::setTargetData(double _targetLatitude, double _targetLongitude, do
 
   targetAltitude = _targetAltitude;
 
-  calculateLateralError();  
+  // Get target coordinates
+  convertDeg2UTM(convertDecimalDegMinToDegree(targetLatitude), convertDecimalDegMinToDegree(targetLongitude), targetEasting, targetNorthing);
+
+  calculateLateralError();
   calculateTimeToDrop();
 
 }
@@ -219,6 +291,7 @@ double Targeter::convertDecimalDegMinToDegree(double decimalDegreeMin) {  //acce
   return baseDegree + baseDegMins / 60.0; // 1 degree minute = 1/60 degrees
 }
 
+//This expects data to be in degrees (NOT decimal degree minutes)
 void Targeter::convertDeg2UTM(double lat, double lon, double &utmEasting, double &utmNorthing) {
 
   char utmLetter;
