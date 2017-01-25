@@ -296,7 +296,6 @@ void resetDAS() {
 
 
 
-//TODO: which pwm_high_time values correspond to the left/right signals? (in first two lines in function)
 int tail_wheel_demixing(int leftSignal, int rightSignal) {
 
   leftSignal -= LEFT_SIGNAL_OFFSET; // Currently defined as 0 offset. may be subject to change

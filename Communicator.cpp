@@ -237,14 +237,14 @@ void Communicator::recalculateTargettingNow(boolean withNewData) {
     //DEBUG_PRINT("Current test data point =");
     //DEBUG_PRINTLN(currentTargeterDataPoint);
 
-    isReadyToDrop = targeter.setCurrentData(GPSLatitudes[currentTargeterDataPoint], GPSLongitudes[currentTargeterDataPoint], altitudes[currentTargeterDataPoint], velocities[currentTargeterDataPoint], headings[currentTargeterDataPoint], millis());
+    isReadyToDrop = targeter.setAndCheckCurrentData(GPSLatitudes[currentTargeterDataPoint], GPSLongitudes[currentTargeterDataPoint], altitudes[currentTargeterDataPoint], velocities[currentTargeterDataPoint], headings[currentTargeterDataPoint], millis());
 
     if (dropBayServoPos == DROP_BAY_OPEN) {
       isReadyToDrop = false;
     }
 
 #else
-    isReadyToDrop = targeter.setCurrentData(GPS.latitude, GPS.longitude, altitude, GPS.speed, GPS.angle, millis());
+    isReadyToDrop = targeter.setAndCheckCurrentData(GPS.latitude, GPS.longitude, altitude, GPS.speed, GPS.angle, millis());
 #endif
   }
   else {
