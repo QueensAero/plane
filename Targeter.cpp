@@ -5,7 +5,7 @@
 Targeter::Targeter() {
 
   //initialize target information (UTM coordinates), based on constants defined in plane.h
-  setTargetData(TARGET_LATT, TARGET_LONG, TARGET_ALTITUDE);  //Target UTM is now never recalculated outside 'setTargetData' function
+  setTargetData(TARGET_LATT, TARGET_LONG, TARGET_ALTITUDE_M);  //Target UTM is now never recalculated outside 'setTargetData' function
   
 }
 
@@ -147,9 +147,8 @@ const double CORRECTION_FACTOR = 0.9;
 double Targeter::calculateDropDistance() {
 
   // targetPos.getAltitude() will probably be 0, but I included it just in case:
-  //TODO - check between below!
-  double heightm = (currentAltitude - targetAltitude)  / 3.28084; // convert feet to meters
-  //double heightm = (currentAltitude - targetAltitude); // Altitudes are already in m
+  double heightm = (currentAltitudeM - targetAltitudeM); 
+  
   // Calculate time for payload to fall:
   if (heightm < 0) {
     heightm = 0;  //prevent NaN from sqrt
@@ -240,15 +239,15 @@ double Targeter::getTimeToDrop() {
 
 // ------------------------------------ SETTERS ------------------------------------
 
-boolean Targeter::setAndCheckCurrentData(double _currentLatitude, double _currentLongitude, double _currentAltitude, double _currentVelocity, double _currentHeading, double _currentDataAge) {
+boolean Targeter::setAndCheckCurrentData(double _currentLatitude, double _currentLongitude, double _currentAltitudeFt, double _currentVelocity, double _currentHeading, double _currentDataAge) {
 
 #ifdef Targeter_Test
   DEBUG_PRINT("Setting current data...(lat = ");
   DEBUG_PRINT(_currentLatitude);
   DEBUG_PRINT("   lon = ");
   DEBUG_PRINT(_currentLongitude);
-  DEBUG_PRINT("   alt = ");
-  DEBUG_PRINT(_currentAltitude);
+  DEBUG_PRINT("   alt (Ft) = ");
+  DEBUG_PRINT(_currentAltitudeFt);
   DEBUG_PRINT("   vel = ");
   DEBUG_PRINT(_currentVelocity);
   DEBUG_PRINT("   heading = ");
@@ -263,7 +262,7 @@ boolean Targeter::setAndCheckCurrentData(double _currentLatitude, double _curren
   currentLatitude = _currentLatitude;
   currentLongitude = _currentLongitude;
 
-  currentAltitude = _currentAltitude;
+  currentAltitudeM = _currentAltitudeFt*FT_TO_METERS;
   currentVelocity = _currentVelocity;
   currentHeading = _currentHeading;
 
@@ -294,11 +293,11 @@ boolean Targeter::setAndCheckCurrentData(double _currentLatitude, double _curren
 
 }
 
-void Targeter::setTargetData(double _targetLatitude, double _targetLongitude, double _targetAltitude) {
+void Targeter::setTargetData(double _targetLatitude, double _targetLongitude, double _targetAltitudeM) {
 
   targetLatitude = _targetLatitude;
   targetLongitude = _targetLongitude;
-  targetAltitude = _targetAltitude;
+  targetAltitudeM = _targetAltitudeM;
 
   //Update Target UTM Coordinates
   convertDeg2UTM(convertDecimalDegMinToDegree(targetLatitude), convertDecimalDegMinToDegree(targetLongitude), targetEasting, targetNorthing);

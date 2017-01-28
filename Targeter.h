@@ -3,6 +3,8 @@
 
 #include "Arduino.h"
 
+#define FT_TO_METERS 0.3048
+
 class Targeter {
   
   public:
@@ -17,8 +19,8 @@ class Targeter {
 
     // ------------------------------------ SETTERS ------------------------------------
 
-    boolean setAndCheckCurrentData(double, double, double, double, double, double);
-    void setTargetData(double, double, double);
+    boolean setAndCheckCurrentData(double _currentLatitude, double _currentLongitude, double _currentAltitudeFt, double _currentVelocity, double _currentHeading, double _currentDataAge);
+    void setTargetData(double _targetLatitude, double _targetLongitude, double _targetAltitudeM);
 
   private:
 
@@ -31,7 +33,7 @@ class Targeter {
     bool haveAPosition = false;  //Protect against calling 'recalculate' before having any data
     double currentLatitude = 0;
     double currentLongitude = 0;
-    double currentAltitude = 0; // m
+    double currentAltitudeM = 0; // m
     double currentDataAge = 0; // millis
     double currentVelocity = 0;
     double currentHeading = 0; // In degrees (E = 0, N = 90, W = 180, S = 270)
@@ -45,7 +47,7 @@ class Targeter {
     // Format: dd° mm.mmmm' - These are initialized through 'setTargetData' function
     double targetLatitude;
     double targetLongitude;
-    double targetAltitude; // m
+    double targetAltitudeM; // m
     double targetEasting = -10000000, targetNorthing = -10000000;  //MAKE different than initial currentEast/North, or it may autodrop on startup
 
     // ------------------------------------ CALCULATED POSITION ------------------------------------

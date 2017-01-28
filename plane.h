@@ -26,6 +26,20 @@
 #define LEFT_SIGNAL_OFFSET 0
 #define RIGHT_SIGNAL_OFFSET -150
 
+
+//MUX Control Pins
+#define MUX_CONTROL_SURFACE_PIN 44
+#define MUX_FLAPS_PIN 46
+#define ARDUINO_CTRL HIGH
+#define SKIP_ARDUINO LOW
+
+//Pushbuttons and Voltage
+#define RESET_PUSHBUTTON_PIN 48
+#define DROP_PUSHBUTTON_PIN 13
+#define BATTERY_VOLTAGE_PIN A4
+#define ANALOG_READ_CONV 3.3/4095.0 * 4.01204819  //last value: 1 / 332K /(332K + 1000K) -> voltage divider used to lower battery voltage to readable range
+
+
 // System timing variables in microseconds
 #define SLOW_LOOP_TIME 250    //Xbee send packets of data 
 #define MEDIUM_LOOP_TIME 50   // Servo updating
@@ -43,9 +57,9 @@ const int closeDropBayTimeout = 10000;
 // ------------------------------------ TARGETING ------------------------------------
 
 // Format: dd° mm.mmmm'
-#define TARGET_LATT 4413.682
-#define TARGET_LONG -7629.518
-#define TARGET_ALTITUDE 0
+#define TARGET_LATT 4413.724
+#define TARGET_LONG -7629.492
+#define TARGET_ALTITUDE_M 0
 // 4413.682, -77629.518 = Passage between ILC and Walter Light Hall
 
 const double targetRaduis = 20; // meters

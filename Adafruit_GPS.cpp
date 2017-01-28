@@ -150,9 +150,9 @@ boolean Adafruit_GPS::parse(char *nmea) {
 
     p = strchr(p, ',') + 1;
     if (',' != *p) {
-      //if (p[0] == 'W') longitudeDegrees *= -1.0;
       if (p[0] == 'W') {
         lon = 'W';
+        longitudeDegrees *= -1.0;
       }
       else if (p[0] == 'E') {
         lon = 'E';

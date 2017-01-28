@@ -74,8 +74,8 @@ boolean Adafruit_MPL3115A2::begin() {
 }
 
 void Adafruit_MPL3115A2::zero() {
-  zeroAltitude = 0;
-  zeroAltitude = getAltitude(true);
+  zeroAltitudeFt = 0;
+  zeroAltitudeFt = getAltitudeFt(true);
 }
 
 void Adafruit_MPL3115A2::setReadTimeout(int timeoutToSet) {
@@ -123,7 +123,7 @@ float Adafruit_MPL3115A2::getPressure() {
   return baro;
 }
 
-float Adafruit_MPL3115A2::getAltitude(boolean ignoreTimeout) {
+float Adafruit_MPL3115A2::getAltitudeFt(boolean ignoreTimeout) {
   int32_t alt;
 
   write8(MPL3115A2_CTRL_REG1,
@@ -162,9 +162,9 @@ float Adafruit_MPL3115A2::getAltitude(boolean ignoreTimeout) {
     alt |= 0xFFF00000;
   }
 
-  float altitude = alt;
-  altitude /= 16.0;
-  return (altitude / DEC_TO_FEET) - zeroAltitude;
+  float altitudeNonStdUnits = alt;  //I think not any standard unit
+  float altitudeDecimeters = altitudeNonStdUnits /= 16.0;  //I think it is now in decimeters
+  return (altitudeDecimeters / DEC_TO_FEET) - zeroAltitudeFt;
 }
 
 /**************************************************************************/

@@ -15,7 +15,7 @@ double current_pitch, current_roll;
 double base_pitch, base_roll;
 
 // Altitude
-double altitude;
+double altitudeFt;
 boolean didGetZeroAltitudeLevel = false;
 
 // System variables
@@ -28,6 +28,12 @@ volatile int pw_l_vtail= 0, pw_r_vtail= 0, pw_l_aileron= 0, pw_r_aileron= 0, pw_
 volatile unsigned long pwm_l_vtail_start= 0, pwm_r_vtail_start= 0, pwm_l_aileron_start= 0, pwm_r_aileron_start= 0, pwm_flaps_start= 0;
 volatile unsigned long pwm_l_vtail_end = 0, pwm_r_vtail_end = 0, pwm_l_aileron_end = 0, 
                        pwm_r_aileron_end = 0, pwm_flaps_end = 0;
+
+
+//Control what the MUX output comes from
+bool ctrl_sig_from_arduino = false;
+bool flaps_sig_from_arduino = true;
+
 
 
 // This is the best way to declare objects!
@@ -48,6 +54,31 @@ void setup() {
 
   // Do this first so servos are hopefully good regardless if below fails/times out/gets 'stuck'
   initializeServos();
+
+  //Mux pins
+  pinMode(MUX_CONTROL_SURFACE_PIN, OUTPUT);
+  pinMode(MUX_FLAPS_PIN, OUTPUT);
+
+  if(!ctrl_sig_from_arduino)
+    digitalWrite(MUX_CONTROL_SURFACE_PIN, SKIP_ARDUINO);
+  else
+    digitalWrite(MUX_CONTROL_SURFACE_PIN, ARDUINO_CTRL);
+
+   if(!flaps_sig_from_arduino)
+    digitalWrite(MUX_FLAPS_PIN, SKIP_ARDUINO);
+  else
+    digitalWrite(MUX_FLAPS_PIN, ARDUINO_CTRL);
+
+
+  //Pushbuttons
+  pinMode(RESET_PUSHBUTTON_PIN, INPUT);
+  pinMode(DROP_PUSHBUTTON_PIN, INPUT);
+
+  //Battery Voltage
+  pinMode(BATTERY_VOLTAGE_PIN, INPUT);
+  analogReadResolution(12);  //use 12 bit analog read
+  comm.sendMessage(MESSAGE_BATTERY_V, (float)analogRead(BATTERY_VOLTAGE_PIN)*ANALOG_READ_CONV);
+  
 
   // Start up serial communicator
   delay(3000);  // Give the XBee some time to start - SUPPOSEDLY IT CAN CAUSE ERRORS IF SENT DATA BEFORE XBEE READY
@@ -72,8 +103,13 @@ void setup() {
   prev_slow_time = prev_medium_time;
   prev_long_time = prev_medium_time;
 
+  //Setup interrupts for pushbuttons
+  attachInterrupt(DROP_PUSHBUTTON_PIN,isr_drop_pushbutton, RISING);
+  attachInterrupt(RESET_PUSHBUTTON_PIN,isr_reset_pushbutton, RISING);
+
   // Send message to ground station saying everything is ready
   comm.sendMessage(MESSAGE_READY);
+
 
 }
 
@@ -172,20 +208,21 @@ void slowLoop() {
   //unsigned long loopStartTime = millis(); // For testing timing
 
   // Get latest altitude data
-  double altitudeReadIn = altimeter.getAltitude(false);
+  double altitudeReadInFt = altimeter.getAltitudeFt(false);
 
   // Altitude = -999 means a timeout occured
-  if (altitudeReadIn > -990) {
+  if (altitudeReadInFt > -990) {
 
-    SerialUSB.print("Raw in: ");
-    SerialUSB.println(altitudeReadIn);
+    //DEBUG_PRINT("Raw alt: ");
+    //DEBUG_PRINTLN(altitudeReadIn);
 
     if (!didGetZeroAltitudeLevel) {
       didGetZeroAltitudeLevel = true;
       altimeter.zero();
+      altitudeFt = altimeter.getAltitudeFt(false);  //now get a correctly zerod altitude
     }
     else {
-      altitude = altitudeReadIn;
+      altitudeFt = altitudeReadInFt;
     }
 
   }
@@ -197,7 +234,7 @@ void slowLoop() {
   #endif
 
   // Pass new data to serial communicator
-  comm.altitude = altitude;
+  comm.altitudeFt = altitudeFt;
 
   // Send data to XBee
   comm.sendData();
@@ -214,7 +251,6 @@ void slowLoop() {
   // Check for restart flag
   if (comm.restart == true) {
     comm.restart = false;
-    // Restart servos, PIDs, everything!
     resetDAS();
     comm.sendMessage(MESSAGE_RESTART_AKN);
   }
@@ -314,6 +350,26 @@ int tail_wheel_demixing(int leftSignal, int rightSignal) {
 
   return constrain(map((leftSignal + rightSignal) / 2, 1000, 2000, 2000, 1000), 1000, 2000); //average left and right values, flip them, then constrain to between 1000-2000
 
+}
+
+/************ ISR's *****************/
+
+//Pusbuttons
+void isr_drop_pushbutton()
+{
+  //TODO - is guard below (for not in air) ok?  Have default disabled?
+  //if(comm.altitude < 20)
+    //comm.dropNow(0,1);
+
+    DEBUG_PRINTLN("Drop Pushbutton Pressed");
+
+}
+
+void isr_reset_pushbutton()
+{
+
+  DEBUG_PRINTLN("Reset Pushbutton Pressed");
+  //TODO - have this do something
 }
 
 
@@ -486,79 +542,3 @@ void isr_falling_flaps()
   attachInterrupt(FLAPS_IN, isr_rising_flaps, RISING);
   
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//Interrupt routines for de-mixing of signal. Error checking to ensure the signal is valid.
-/* These are encorporated into the above isr's
-  //interupt service routine called on the rising edge of the pulse
-  void isr_rising_elevator()
-  {
-  //record current time.  this is the rise time
-  prev_time[0] = micros();
-
-    //calculate the time since the last falling edge was detected
-    //only count this as a valid rising edge if time difference is more than 1000 microseconds
-    if(prev_time[0] > 1000){
-       //if it is a valid rising edge, set the interupt for the falling edge on the same pin
-       attachInterrupt(ELEVATOR_INPUT_PIN, isr_falling_elevator, FALLING);
-    }
-
-  }
-
-  //interrupt service routine called on the falling edge of the pulse
-  void isr_falling_elevator() {
-  //record current time, this is the fall time of the pulse
-  pwm_value[0] = micros()-prev_time[0];
-
-  //calculate the time difference between the rising and falling edge
-  //only a valid pulse if the time difference is between 400 and 2500 microseconds
-  if (pwm_value[0] >= 400 && pwm_value[0] <= 2500){
-    attachInterrupt(ELEVATOR_INPUT_PIN, isr_rising_elevator, RISING);
-  }
-
-  }
-
-  //interupt service routine called on the rising edge of the pulse
-  void isr_rising_rudder()
-  {
-  //record current time.  this is the rise time
-  prev_time[1] = micros();
-
-  //calculate the time since the last falling edge was detected
-  //only count this as a valid rising edge if time difference is more than 1000 microseconds
-  if(prev_time[1] >= 1000){
-    //if it is a valid rising edge, set the interupt for the falling edge on the same pin
-    attachInterrupt(RUDDER_INPUT_PIN, isr_falling_rudder, FALLING);
-  }
-
-  }
-
-  //interrupt service routine called on the falling edge of the pulse
-  void isr_falling_rudder() {
-  //record current time, this is the fall time of the pulse
-  pwm_value[1] = micros()-prev_time[1];
-
-  //calculate the time difference between the rising and falling edge
-  //only a valid pulse if the time difference is between 400 and 2500 microseconds
-  if (pwm_value[1] >= 400 && pwm_value[1] <= 2500){
-    attachInterrupt(RUDDER_INPUT_PIN, isr_rising_rudder, RISING);
-  }
-
-  }   */

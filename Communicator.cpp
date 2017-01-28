@@ -48,11 +48,9 @@ void Communicator::initialize() {
   DEBUG_PRINTLN("Initializing Communicator");
 
 
-  // Set initial values to 0 (0.1 since sending 0x00 as a byte fails to show up on serial monitor)
-  altitude = 0.1;
-  roll = 0.1;
-  pitch = 0.1;
-  altitudeAtDrop = 0;
+  // Set initial values to 0
+  altitudeFt = 0;
+  altitudeAtDropFt = 0;
   timeAtDrop = 0;
 
   //Attach servo, init position to closed
@@ -74,7 +72,6 @@ bool Communicator::initXBee()
   // Initialize serial commuication to Xbee.
   XBEE_SERIAL.begin(XBEE_BAUD);  //this is to Xbee
   while (!XBEE_SERIAL); //wait until it's ready
-
 
   //Put into command mode, switch to transparent (not API) mode, then exit command mode
   if (!sendCmdAndWaitForOK("+++"))
@@ -179,7 +176,7 @@ void Communicator::dropNow(int src, int state) {
 #endif
     digitalWrite(STATUS_LED_PIN, HIGH);
     dropBayServoPos = DROP_BAY_OPEN;
-    altitudeAtDrop = altitude;
+    altitudeAtDropFt = altitudeFt;
     timeAtDrop = millis();
     sendMessage(MESSAGE_DROP_OPEN);
   }
@@ -244,7 +241,7 @@ void Communicator::recalculateTargettingNow(boolean withNewData) {
     }
 
 #else
-    isReadyToDrop = targeter.setAndCheckCurrentData(GPS.latitude, GPS.longitude, altitude, GPS.speed, GPS.angle, millis());
+    isReadyToDrop = targeter.setAndCheckCurrentData(GPS.latitude, GPS.longitude, altitudeFt, GPS.speed, GPS.angle, millis());
 #endif
   }
   else {
@@ -306,9 +303,12 @@ void Communicator::recieveCommands() {
 
     //Return Altitude at Drop
     if (incomingByte == INCOME_DROP_ALT) {  //SEND ALTITUDE_AT_DROP
-      XBEE_SERIAL.print("*a");
-      sendFloat((float)altitude);
-      XBEE_SERIAL.print("ee");
+      sendMessage(MESSAGE_ALT_AT_DROP, (float)altitudeAtDropFt);
+    }
+
+    //Send Battery Voltage
+    if(incomingByte == INCOME_BATTERY_V){
+       sendMessage(MESSAGE_BATTERY_V, (float)analogRead(BATTERY_VOLTAGE_PIN)*ANALOG_READ_CONV);
     }
 
   }
@@ -350,6 +350,7 @@ void Communicator::setupGPS() {
   // Start the serial communication
   GPS_SERIAL.begin(GPS_BAUD);
 
+/*  Settings should persist over power off, so this is uncessary (CHECK BATTERY IS GOOD)
   // Commands to configure GPS:
   GPS_SERIAL.println(PMTK_SET_NMEA_OUTPUT_RMCONLY); 		// Set to only output GPRMC (has all the info we need),
   GPS_SERIAL.println(SET_NMEA_UPDATE_RATE_5HZ);			// Increase rate strings sent over serial
@@ -359,15 +360,15 @@ void Communicator::setupGPS() {
   delay(3000);  //Not really sure if needed.
 
   // Flush the GPS input (still unsure if the GPS sends response to the above commands)
-  while (GPS_SERIAL.available()) {
+  int numFlushed = 0;  //ensure if flushes slower than receive, that is can leave below
+  while (GPS_SERIAL.available() && numFlushed++ < 30) {
     //GPS_SERIAL.read();
     DEBUG_PRINT("FLUSH RESPONSE: ");
     DEBUG_PRINT(GPS_SERIAL.read());
     DEBUG_PRINTLN("");
   }
 
-  DEBUG_PRINTLN("DONE FLUSHING");
-
+  DEBUG_PRINTLN("DONE FLUSHING");  */
 }
 
 // Data is sent via wireless serial link to ground station
@@ -379,11 +380,22 @@ void Communicator::setupGPS() {
 // No other serial communication can be done in other classes!!!
 void Communicator::sendData() {
 
+/* For testing
+  long maxRand = 1000000;
+  altitudeFt = random(0,maxRand)*(150.0-0.0)/maxRand + 0.0;
+  GPS.speed = random(0,maxRand)*(20.0-5.0)/maxRand  + 5.0;
+  float GPSerr = 0.1;
+  GPS.latitude = random(0,maxRand)*GPSerr/maxRand  + TARGET_LATT - GPSerr/2;  
+  GPS.longitude = random(0,maxRand)*GPSerr/maxRand + TARGET_LONG - GPSerr/2;   //NOTE - pay attend to signs, this is negative (as it should be)
+  GPS.angle = random(0,maxRand)*(360.0-0.0)/maxRand + 0.0;
+  GPS.milliseconds = random(0,1000);
+  GPS.seconds = random(0,60);  */
 
+ 
   //Send to XBee
   XBEE_SERIAL.print("*");
   XBEE_SERIAL.print(DATA_PACKET);
-  sendFloat((float)altitude);
+  sendFloat((float)altitudeFt);
   sendFloat(GPS.speed);
   sendFloat(GPS.latitude);
   sendFloat(GPS.longitude);
@@ -393,12 +405,18 @@ void Communicator::sendData() {
   XBEE_SERIAL.print("ee");
 
   //If Debugging, send to Serial Monitor (Note this doesn't use the bytewise representation of numbers)
-  DEBUG_PRINT("Message: ");
-  DEBUG_PRINT(altitude);
+  DEBUG_PRINT("Message:");
+  DEBUG_PRINT("Alt: ");
+  DEBUG_PRINT(altitudeFt);
+  DEBUG_PRINT("  Spd: ");
   DEBUG_PRINT(GPS.speed);
+  DEBUG_PRINT("  Latt: ");
   DEBUG_PRINT(GPS.latitude);
+  DEBUG_PRINT("  Long: ");
   DEBUG_PRINT(GPS.longitude);
+  DEBUG_PRINT("  ms: ");
   DEBUG_PRINT(GPS.milliseconds);
+  DEBUG_PRINT("  s: ");
   DEBUG_PRINTLN(GPS.seconds);
 
 }
@@ -407,6 +425,15 @@ void Communicator::sendMessage(char message) {
   XBEE_SERIAL.print("*");
   XBEE_SERIAL.print(message);
   XBEE_SERIAL.print("ee");
+}
+
+
+void Communicator::sendMessage(char message, float value) // Messages with associated floats
+{
+      XBEE_SERIAL.print("*");
+      XBEE_SERIAL.print(message);
+      sendFloat((float)value);
+      XBEE_SERIAL.print("ee");  
 }
 
 void Communicator::sendUint8_t(uint8_t toSend) {

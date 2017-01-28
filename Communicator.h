@@ -21,6 +21,7 @@
 #define INCOME_DROP_ALT		  'g'
 #define INCOME_DROP_OPEN    'o'
 #define INCOME_DROP_CLOSE  	'c'
+#define INCOME_BATTERY_V    'b'
 
 // MESSAGE CONSTANTS -- SEND
 #define DATA_PACKET 'p'
@@ -34,6 +35,8 @@
 #define MESSAGE_DROP_ACK    'y'
 #define MESSAGE_AUTO_ON		  'b'
 #define MESSAGE_AUTO_OFF	  'd'
+#define MESSAGE_BATTERY_V   'w'
+#define MESSAGE_ALT_AT_DROP 'a'
 
 
 // #define Servo pins
@@ -65,7 +68,7 @@ class Communicator {
     int dropBayServoPos;
     Servo dropServo;
 
-    double altitudeAtDrop;
+    double altitudeAtDropFt;
     unsigned long timeAtDrop;
 
     //Initialize XBee by starting communication and putting in transparent mode
@@ -83,7 +86,7 @@ class Communicator {
 
     int currentTargeterDataPoint = -1;  //used for testing targeter
     
-    double altitude, roll, pitch;
+    double altitudeFt;
 
     Communicator();
     ~Communicator();
@@ -111,6 +114,8 @@ class Communicator {
     // Function to send standard message to ground station
     // examples: START, READY, RESET ACKNOLEGED
     void sendMessage(char message); // Takes single standard character that is a code for standard message - see definitions above
+    void sendMessage(char message, float value); // Messages with associated floats
+
 
 };
 

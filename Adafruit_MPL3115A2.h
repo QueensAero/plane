@@ -99,7 +99,7 @@ class Adafruit_MPL3115A2 {
     void zero(void);
     void setReadTimeout(int);
     float getPressure(void);
-    float getAltitude(boolean);
+    float getAltitudeFt(boolean);
     float getTemperature(void);
 
     void write8(uint8_t a, uint8_t d);
@@ -107,7 +107,7 @@ class Adafruit_MPL3115A2 {
   private:
     uint8_t read8(uint8_t a);
     uint8_t mode;
-    float zeroAltitude;
+    float zeroAltitudeFt;
     int readTimeout;
 
 };
