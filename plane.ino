@@ -246,6 +246,8 @@ void slowLoop() {
     comm.reset = false;
     resetDAS();
     comm.sendMessage(MESSAGE_RESET_AKN);
+    didGetZeroAltitudeLevel = false; //re-zero
+
   }
 
   // Check for restart flag
@@ -253,6 +255,8 @@ void slowLoop() {
     comm.restart = false;
     resetDAS();
     comm.sendMessage(MESSAGE_RESTART_AKN);
+    didGetZeroAltitudeLevel = false; //re-zero
+
   }
 
   //SerialUSB.print("Reading time: ");
@@ -388,6 +392,9 @@ void isr_rising_r_vtail()
   if (low_time > 1000) {
     attachInterrupt(RIGHT_VTAIL_IN, isr_falling_r_vtail, FALLING);
   }
+
+    DEBUG_PRINTLN("RVTAIL RISING ISR"); 
+
   
 }
 
@@ -403,6 +410,9 @@ void isr_rising_l_vtail()
   if (low_time > 1000) {
     attachInterrupt(LEFT_VTAIL_IN, isr_falling_l_vtail, FALLING);
   }
+
+      DEBUG_PRINTLN("LVTAIL RISING ISR"); 
+
   
 }
 
@@ -418,6 +428,8 @@ void isr_rising_r_aileron()
   if (low_time > 1000) {
     attachInterrupt(RIGHT_AILERON_IN, isr_falling_r_aileron, FALLING);
   }
+
+      DEBUG_PRINTLN("RAILERON RISING ISR"); 
   
 }
 
@@ -433,7 +445,8 @@ void isr_rising_l_aileron()
   if (low_time > 1000) {
     attachInterrupt(LEFT_AILERON_IN, isr_falling_l_aileron, FALLING);
   }
-  
+
+    DEBUG_PRINTLN("LAILERON RISING ISR");   
 }
 
 void isr_rising_flaps()
@@ -448,6 +461,8 @@ void isr_rising_flaps()
   if (low_time > 1000) {
     attachInterrupt(FLAPS_IN, isr_falling_flaps, FALLING);
   }
+
+   DEBUG_PRINTLN("FLAPS RISING ISR");   
   
 }
 
@@ -467,6 +482,9 @@ void isr_falling_r_vtail()
   }
 
   attachInterrupt(RIGHT_VTAIL_IN, isr_rising_r_vtail, RISING);
+
+   DEBUG_PRINTLN("RVTAIL FALLING ISR");   
+
   
 }
 
@@ -486,6 +504,9 @@ void isr_falling_l_vtail()
   }
 
   attachInterrupt(LEFT_VTAIL_IN, isr_rising_l_vtail, RISING);
+
+     DEBUG_PRINTLN("LVTAIL FALLING ISR");   
+
   
 }
 
@@ -504,7 +525,8 @@ void isr_falling_r_aileron()
   }
 
   attachInterrupt(RIGHT_AILERON_IN, isr_rising_r_aileron, RISING);
-  
+
+   DEBUG_PRINTLN("RAILERON FALLING ISR");    
 }
 
 void isr_falling_l_aileron()
@@ -522,7 +544,7 @@ void isr_falling_l_aileron()
 
   attachInterrupt(LEFT_AILERON_IN, isr_rising_l_aileron, RISING);
 
-  
+ DEBUG_PRINTLN("LAILERON FALLING ISR");     
 }
 
 void isr_falling_flaps()
@@ -540,5 +562,6 @@ void isr_falling_flaps()
   }
 
   attachInterrupt(FLAPS_IN, isr_rising_flaps, RISING);
-  
+
+   DEBUG_PRINTLN("FLAPS FALLING ISR");   
 }

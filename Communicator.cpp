@@ -321,20 +321,20 @@ void Communicator::getSerialDataFromGPS() {
      
     nmeaBuf[nmeaBufInd] = GPS_SERIAL.read();
 
-    DEBUG_PRINT(nmeaBuf[nmeaBufInd]);
     if (nmeaBuf[nmeaBufInd++] == '\n') { // Increment index after checking if current character signifies the end of a string
       nmeaBuf[nmeaBufInd - 1] = '\0'; // Add null terminating character (note: -1 is because nmeaBufInd is incremented in if statement)
       newParsedData = GPS.parse(nmeaBuf); 	// This parses the string, and updates the values of GPS.lattitude, GPS.longitude etc.
       nmeaBufInd = 0;  // Regardless of it parsing sucessful, we want to reset position back to zero
-
+    
       recalculateTargettingNow(true);
+      //String str(nmeaBuf);
+      //DEBUG_PRINTLN(str);
 
     }
 
     if (nmeaBufInd >= MAXLINELENGTH) { // Should never happen. Means a corrupted packed and the newline was missed. Good to have just in case
       nmeaBufInd = 0;  // Note the next packet will then have been corrupted as well. Can't really recover until the next-next packet
     }
-    //DEBUG_PRINTLN("");
 
   }
 
@@ -350,25 +350,26 @@ void Communicator::setupGPS() {
   // Start the serial communication
   GPS_SERIAL.begin(GPS_BAUD);
 
-/*  Settings should persist over power off, so this is uncessary (CHECK BATTERY IS GOOD)
+  //Settings should persist over power off, but having problems with that - so set these
+  //TODO - check for responses, not blindly hope it worked
   // Commands to configure GPS:
   GPS_SERIAL.println(PMTK_SET_NMEA_OUTPUT_RMCONLY); 		// Set to only output GPRMC (has all the info we need),
   GPS_SERIAL.println(SET_NMEA_UPDATE_RATE_5HZ);			// Increase rate strings sent over serial
   GPS_SERIAL.println(PMTK_API_SET_FIX_CTL_5HZ);			// Increase rate GPS 'connects' and syncs with satellites
   GPS_SERIAL.println(ENABLE_SBAB_SATELLITES);				// Enable using a more accurate type of satellite
   GPS_SERIAL.println(ENABLE_USING_WAAS_WITH_SBSB_SATS); 	// Enable the above satellites in 'fix' mode (I think)
-  delay(3000);  //Not really sure if needed.
+  delay(1500);  //Not really sure if needed.
 
+  /*
   // Flush the GPS input (still unsure if the GPS sends response to the above commands)
   int numFlushed = 0;  //ensure if flushes slower than receive, that is can leave below
   while (GPS_SERIAL.available() && numFlushed++ < 30) {
-    //GPS_SERIAL.read();
-    DEBUG_PRINT("FLUSH RESPONSE: ");
-    DEBUG_PRINT(GPS_SERIAL.read());
-    DEBUG_PRINTLN("");
+    DEBUG_PRINT(GPS_SERIAL.available());
+    DEBUG_PRINT("   FLUSH RESPONSE: ");
+    DEBUG_PRINTLN(GPS_SERIAL.read());
   }
 
-  DEBUG_PRINTLN("DONE FLUSHING");  */
+  DEBUG_PRINTLN("DONE FLUSHING"); */
 }
 
 // Data is sent via wireless serial link to ground station
