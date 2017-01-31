@@ -6,7 +6,7 @@ Targeter::Targeter() {
 
   //initialize target information (UTM coordinates), based on constants defined in plane.h
   setTargetData(TARGET_LATT, TARGET_LONG, TARGET_ALTITUDE_M);  //Target UTM is now never recalculated outside 'setTargetData' function
-  
+
 }
 
 // ------------------------------------ PHYSICAL CALCULATIONS ------------------------------------
@@ -106,7 +106,7 @@ double Targeter::calculateLateralError() {
 */
 
 double Targeter::calculateDirectDistanceToTarget() {
-  
+
   // Use pythagorean theorem to calculate distance between curPos and targetPos:
   double dist = sqrt(pow((targetEasting - currentEasting), 2) + pow((targetNorthing - currentNorthing), 2));
   return dist;
@@ -147,8 +147,8 @@ const double CORRECTION_FACTOR = 0.9;
 double Targeter::calculateDropDistance() {
 
   // targetPos.getAltitude() will probably be 0, but I included it just in case:
-  double heightm = (currentAltitudeM - targetAltitudeM); 
-  
+  double heightm = (currentAltitudeM - targetAltitudeM);
+
   // Calculate time for payload to fall:
   if (heightm < 0) {
     heightm = 0;  //prevent NaN from sqrt
@@ -170,8 +170,8 @@ double Targeter::calculateDropDistance() {
 double Targeter::calculateTimeToDrop() {
   double distRemaining = dropDistanceToTarget();
   double adjustedDistRemaining = distRemaining - currentVelocity * ((millis() - currentDataAge + SERVO_OPEN_DELAY) / 1000);  //Account for the fact we want to check for drop condition faster than it updates
-                                               //Assume same heading and velocity, and multiply currentVelocity*tSinceDataReceived
-  
+  //Assume same heading and velocity, and multiply currentVelocity*tSinceDataReceived
+
   // t = d/v
   timeToDrop = adjustedDistRemaining / currentVelocity;
   return timeToDrop;
@@ -183,35 +183,54 @@ double Targeter::dropDistanceToTarget() {
 }
 
 //Only call after calculateTimeToDrop
-void Targeter::calculateEstDropPositionAndDist()
-{ 
+void Targeter::calculateEstDropPositionAndDist() {
+
+  DEBUG_PRINTLN("");
+  DEBUG_PRINTLN("[Calculate Estimated Drop Position And Dist]");
+  DEBUG_PRINTLN("");
+
   double currentHeadingMathAngle = convertHeadingToMathAngle(currentHeading);
+
+  DEBUG_PRINT("Current heading (math angle) = ");
+  DEBUG_PRINTLN(currentHeadingMathAngle);
+
   estDropEasting = currentEasting + cos(currentHeadingMathAngle / 180 * PI) * dropHorizDistance;
-  estDropNorthing = currentEasting + sin(currentHeadingMathAngle / 180 * PI) * dropHorizDistance;
+  estDropNorthing = currentNorthing + sin(currentHeadingMathAngle / 180 * PI) * dropHorizDistance;
+
+  DEBUG_PRINT("Estimated drop easting = ");
+  DEBUG_PRINTLN(estDropEasting);
+  
+  DEBUG_PRINT("Estimated drop northing = ");
+  DEBUG_PRINTLN(estDropNorthing);
+
+  DEBUG_PRINT("Target easting = ");
+  DEBUG_PRINTLN(targetEasting);
+
+  DEBUG_PRINT("Target northing = ");
+  DEBUG_PRINTLN(targetNorthing);
 
   estDropPosDistToTarget = sqrt(pow(targetNorthing - estDropNorthing, 2) + pow(targetEasting - estDropEasting, 2));
- 
+
 }
 
 
 //ONLY call after    calculateLateralError();  &   calculateTimeToDrop();
-bool Targeter::evaluateDropCriteria()
-{
+bool Targeter::evaluateDropCriteria() {
 
-  //1. We update every 50ms, so if much higher than that we want to wait to drop closer to center
-  if(timeToDrop > 0.2)  //200 ms * 15 m/s = 3 m, not really a worry of dropping early 
+  // 1. We update every 50ms, so if much higher than that we want to wait to drop closer to center
+  if (timeToDrop > 0.2) //200 ms * 15 m/s = 3 m, not really a worry of dropping early
     return false;
 
-  //2. We NEED be in the rings at the drop point
-  if(estDropPosDistToTarget > targetRaduis)
+  // 2. We NEED be in the rings at the drop point
+  if (estDropPosDistToTarget > targetRaduis)
     return false;
 
-  //3. There was thought to add details about if we are heading away from target (ie. drop asap or something?)
-      //However I believe that is captured above be having the 'timeToDrop' test search for greater than (and no less than condition)
+  // 3. There was thought to add details about if we are heading away from target (ie. drop asap or something?)
+  // However I believe that is captured above be having the 'timeToDrop' test search for greater than (and no less than condition)
 
-  //We are now close enough to be in rings, and if under 0.2 we want to drop
+  // We are now close enough to be in rings, and if under 0.2 we want to drop
   return true;
-  
+
 }
 
 
@@ -219,12 +238,33 @@ bool Targeter::evaluateDropCriteria()
 
 boolean Targeter::recalculate() {
 
-  if(!haveAPosition)  //If we haven't set any data, then we can't try this or it will fail
+  if (!haveAPosition) //If we haven't set any data, then we can't try this or it will fail
     return false;
-    
+
+#ifdef Targeter_Test
+  DEBUG_PRINTLN("Recalculating between data points...");
+#endif
+
   calculateLateralError();
   calculateTimeToDrop();
   calculateEstDropPositionAndDist();
+
+#ifdef Targeter_Test
+  DEBUG_PRINT("Lateral error = ");
+  DEBUG_PRINTLN(lateralError);
+  DEBUG_PRINT("Time to drop = ");
+  DEBUG_PRINTLN(timeToDrop);
+  DEBUG_PRINT("Distance to optimal drop distance = ");
+  DEBUG_PRINTLN(dropDistanceToTarget());
+  DEBUG_PRINT("Path distance to target = ");
+  DEBUG_PRINTLN(calculatePathDistanceToTarget());
+  DEBUG_PRINT("Estimated distance from drop point to target = ");
+  calculateEstDropPositionAndDist();
+  DEBUG_PRINTLN(estDropPosDistToTarget);
+  DEBUG_PRINT("Target radius = ");
+  DEBUG_PRINTLN(targetRaduis);
+#endif
+
   return evaluateDropCriteria();
 
 }
@@ -262,14 +302,14 @@ boolean Targeter::setAndCheckCurrentData(double _currentLatitude, double _curren
   currentLatitude = _currentLatitude;
   currentLongitude = _currentLongitude;
 
-  currentAltitudeM = _currentAltitudeFt*FT_TO_METERS;
+  currentAltitudeM = _currentAltitudeFt * FT_TO_METERS;
   currentVelocity = _currentVelocity;
   currentHeading = _currentHeading;
 
   currentDataAge = _currentDataAge;
 
-    // Get current coordinates (saved in currentEasting/currentNorthing)
-    convertDeg2UTM(convertDecimalDegMinToDegree(currentLatitude), convertDecimalDegMinToDegree(currentLongitude), currentEasting, currentNorthing);
+  // Get current coordinates (saved in currentEasting/currentNorthing)
+  convertDeg2UTM(convertDecimalDegMinToDegree(currentLatitude), convertDecimalDegMinToDegree(currentLongitude), currentEasting, currentNorthing);
 
   calculateLateralError();
   calculateTimeToDrop();
@@ -280,16 +320,18 @@ boolean Targeter::setAndCheckCurrentData(double _currentLatitude, double _curren
   DEBUG_PRINTLN(lateralError);
   DEBUG_PRINT("Time to drop = ");
   DEBUG_PRINTLN(timeToDrop);
-  DEBUG_PRINT("Drop distance = ");
+  DEBUG_PRINT("Distance to optimal drop distance = ");
   DEBUG_PRINTLN(dropDistanceToTarget());
-  DEBUG_PRINT("Distance to target = ");
+  DEBUG_PRINT("Path distance to target = ");
   DEBUG_PRINTLN(calculatePathDistanceToTarget());
+  DEBUG_PRINT("Estimated distance from drop point to target = ");
+  calculateEstDropPositionAndDist();
+  DEBUG_PRINTLN(estDropPosDistToTarget);
   DEBUG_PRINT("Target radius = ");
   DEBUG_PRINTLN(targetRaduis);
 #endif
 
-    return evaluateDropCriteria();
-
+  return evaluateDropCriteria();
 
 }
 

@@ -31,6 +31,9 @@ static float GPSLongitudes[] = { -7629.504, -7629.507, -7629.509, -7629.513, -76
 // Points start at south end of bioscience complex and move North along Arch street
 
 static float altitudes[] = {100, 100, 100, 100, 100};
+//static float velocities[] = {10, 10, 10, 10, 10};
+//static float headings[] = {0, 0, 0, 0, 0};
+
 static float velocities[] = {10, 20, 30, 40, 50};
 static float headings[] = {360, 360, 360, 360, 360};
 
@@ -217,12 +220,22 @@ void Communicator::recalculateTargettingNow(boolean withNewData) {
   DEBUG_PRINTLN("[RECALCULATE TARGETING]");
   DEBUG_PRINTLN("");
 
-  currentTargeterDataPoint++;
-  if (currentTargeterDataPoint == NUM_TARGETER_DATAPTS) {
-    currentTargeterDataPoint = 0;
+  if(withNewData) {
+
+    currentTargeterDataPoint++;
+    if (currentTargeterDataPoint == NUM_TARGETER_DATAPTS) {
+      currentTargeterDataPoint = 0;
+    }
+    DEBUG_PRINT("Moving on to next test data point #");
+    DEBUG_PRINTLN(currentTargeterDataPoint);
+
   }
-  DEBUG_PRINT("Moving on to next test data point #");
-  DEBUG_PRINTLN(currentTargeterDataPoint);
+  else {
+    DEBUG_PRINT("In between test data points ");
+    DEBUG_PRINT(currentTargeterDataPoint);
+    DEBUG_PRINT(" and ");
+    DEBUG_PRINTLN(currentTargeterDataPoint + 1);
+  }
 
 #endif
 
@@ -456,5 +469,4 @@ void Communicator::sendFloat(float toSend) {
   byte *data = (byte*)&toSend; //cast address of float to byte array
   XBEE_SERIAL.write(data, sizeof(toSend));  //send float as 4 bytes
 }
-
 
