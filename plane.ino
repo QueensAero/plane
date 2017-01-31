@@ -362,8 +362,21 @@ int tail_wheel_demixing(int leftSignal, int rightSignal) {
 void isr_drop_pushbutton()
 {
   //TODO - is guard below (for not in air) ok?  Have default disabled?
-  //if(comm.altitude < 20)
-    //comm.dropNow(0,1);
+  if(comm.dropBayServoPos == DROP_BAY_OPEN)
+  {
+    comm.dropNow(0,0);  //close drop bay    
+  }
+  else if(comm.altitudeFt < 10 && )
+  { 
+    //Only drop if near ground (prevent accidental activation in air??  
+    comm.dropNow(0,1);
+
+  }
+  else
+  {
+
+    
+  }
 
     DEBUG_PRINTLN("Drop Pushbutton Pressed");
 
