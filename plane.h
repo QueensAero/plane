@@ -24,7 +24,7 @@
 #define FLIP_LEFT_SIGNAL false
 #define FLIP_RIGHT_SIGNAL true
 #define LEFT_SIGNAL_OFFSET 0
-#define RIGHT_SIGNAL_OFFSET -150
+#define RIGHT_SIGNAL_OFFSET 0
 
 
 //MUX Control Pins
@@ -38,11 +38,11 @@
 #define DROP_PUSHBUTTON_PIN 13
 #define BATTERY_VOLTAGE_PIN A4
 #define ANALOG_READ_CONV 3.3/4095.0 * 4.01204819  //last value: 1 / 332K /(332K + 1000K) -> voltage divider used to lower battery voltage to readable range
-
+//TODO - test battery voltage in charger, then check this returns correct value (resistors may be off?)
 
 // System timing variables in microseconds
 #define SLOW_LOOP_TIME  250  //250    //Xbee send packets of data 
-#define MEDIUM_LOOP_TIME 50  //50   // Servo updating
+#define MEDIUM_LOOP_TIME 30  //50   // Servo updating
 #define FAST_LOOP_TIME 1  	  // MPU updating, if PID's then compute new servo values
 #define LONG_LOOP_TIME 500 	  // LED blinking
 
@@ -69,22 +69,35 @@ const int closeDropBayTimeout = 10000;
 // During testing we might want to send over USB to computer. Instead of commenting out a lot of  'SerialUSB.print(...)' statements we can define a macro as below
 // If the line directly below is NOT commented out, then DEGUB_PRINT(...) will send to computer. If it is commented out, the macro DEBUG_PRINT/LN will be empty and
 // the compiler will optimize it out of the code automatically
-#define DEBUG_COMMUNICATOR
+//#define DEBUG_COMMUNICATOR
 #define DEBUG_SERIAL_BAUD 115200  // This actually doesn't matter - over USB it defaults to some high baudrate
 
 
 #ifdef DEBUG_COMMUNICATOR
-#define DEBUG_SERIAL Serial
-#define DEBUG_PRINT(x) DEBUG_SERIAL.print(x)
-#define DEBUG_PRINTLN(x) DEBUG_SERIAL.println(x)
-#define DEBUG_BEGIN(x) DEBUG_SERIAL.begin(x)
+  #define DEBUG_SERIAL Serial
+  #define DEBUG_PRINT(x) DEBUG_SERIAL.print(x)
+  #define DEBUG_PRINTLN(x) DEBUG_SERIAL.println(x)
+  #define DEBUG_BEGIN(x) DEBUG_SERIAL.begin(x)
 #else
-#define DEBUG_PRINT(x)
-#define DEBUG_PRINTLN(x)
-#define DEBUG_BEGIN(x)
+  #define DEBUG_PRINT(x)
+  #define DEBUG_PRINTLN(x)
+  #define DEBUG_BEGIN(x)
 #endif
 
-//#define Targeter_Test
 // Tests the targeting system with pre-defined GPS datapoints
+#define Targeter_Test
+//same thing with targeting debugging (Note - includes 'drop' and 'closeDropBay' functions
+#ifdef Targeter_Test
+  #define TARGET_SERIAL Serial
+  #define TARGET_PRINT(x) TARGET_SERIAL.print(x)
+  #define TARGET_PRINTLN(x) TARGET_SERIAL.println(x)
+  #define TARGET_BEGIN(x) TARGET_SERIAL.begin(x)
+ #else
+  #define TARGET_PRINT(x)
+  #define TARGET_PRINTLN(x)
+  #define TARGET_BEGIN(x)
+#endif
+
+
 
 #endif //_PLANE_H

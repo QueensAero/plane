@@ -19,7 +19,7 @@ boolean Targeter::recalculate() {
     return false;
 
 
-  DEBUG_PRINTLN("Recalculating Results: \n");
+  TARGET_PRINTLN("Recalculating Results: \n");
   return performTargetCalcsAndEvaluateResults();
 
 }
@@ -40,7 +40,7 @@ boolean Targeter::setAndCheckCurrentData(double _currentLatitude, double _curren
   convertDeg2UTM(convertDecimalDegMinToDegree(currentLatitude), convertDecimalDegMinToDegree(currentLongitude), currentEasting, currentNorthing);
 
 
-  DEBUG_PRINTLN("New Data Results: \n");
+  TARGET_PRINTLN("New Data Results: \n");
   return performTargetCalcsAndEvaluateResults();
 
 }
@@ -73,23 +73,23 @@ bool Targeter::performTargetCalcsAndEvaluateResults()
   
 
   /*****DEBUGGING - print results *****/
-  DEBUG_PRINT("Easting = ");  DEBUG_PRINT(currentEasting);
-  DEBUG_PRINT("\t\tNorthing = ");  DEBUG_PRINT(currentNorthing);
-  DEBUG_PRINT("\t\tTarget.easting = ");  DEBUG_PRINT(targetEasting);
-  DEBUG_PRINT("\t\tTarget.northing = ");  DEBUG_PRINTLN(targetNorthing);
+  TARGET_PRINT("Easting = ");  TARGET_PRINT(currentEasting);
+  TARGET_PRINT("\t\tNorthing = ");  TARGET_PRINT(currentNorthing);
+  TARGET_PRINT("\t\tTarget.easting = ");  TARGET_PRINT(targetEasting);
+  TARGET_PRINT("\t\tTarget.northing = ");  TARGET_PRINTLN(targetNorthing);
   
-  DEBUG_PRINT("Alt (M) = ");  DEBUG_PRINT(targetAltitudeM );
-  DEBUG_PRINT("\t\tVel = ");  DEBUG_PRINT(currentVelocityMPS);
-  DEBUG_PRINT("\t\tHeading = ");  DEBUG_PRINT(currentHeading);
-  DEBUG_PRINT("\t\tTimestamp = ");  DEBUG_PRINTLN(currentDataTimestamp);
+  TARGET_PRINT("Alt (M) = ");  TARGET_PRINT(currentAltitudeM );
+  TARGET_PRINT("\t\tVel = ");  TARGET_PRINT(currentVelocityMPS);
+  TARGET_PRINT("\t\tHeading = ");  TARGET_PRINT(currentHeading);
+  TARGET_PRINT("\t\tTimestamp = ");  TARGET_PRINTLN(currentDataTimestamp);
 
-  DEBUG_PRINT("Lateral error = ");  DEBUG_PRINTLN(lateralError);
-  DEBUG_PRINT("Direct Dist to Target = "); DEBUG_PRINTLN(directDistanceToTarget);
-  DEBUG_PRINT("Distance to min lateral err = ");  DEBUG_PRINTLN(distAlongPathToMinLateralErr);
-  DEBUG_PRINT("Horizontal dist from drop, dataAge, dropDelay = "); DEBUG_PRINTLN(horizDistance);
-  DEBUG_PRINT("Time until drop = ");  DEBUG_PRINTLN(timeTillDrop);
-  DEBUG_PRINT("Dist from drop loc to target = ");  DEBUG_PRINTLN(distFromEstDropPosToTarget);
-  DEBUG_PRINT("Target radius = ");  DEBUG_PRINTLN(TARGET_RADIUS);
+  TARGET_PRINT("Lateral error = ");  TARGET_PRINTLN(lateralError);
+  TARGET_PRINT("Direct Dist to Target = "); TARGET_PRINTLN(directDistanceToTarget);
+  TARGET_PRINT("Distance to min lateral err = ");  TARGET_PRINTLN(distAlongPathToMinLateralErr);
+  TARGET_PRINT("Horizontal dist from drop, dataAge, dropDelay = "); TARGET_PRINTLN(horizDistance);
+  TARGET_PRINT("Time until drop = ");  TARGET_PRINTLN(timeTillDrop);
+  TARGET_PRINT("Dist from drop loc to target = ");  TARGET_PRINTLN(distFromEstDropPosToTarget);
+  TARGET_PRINT("Target radius = ");  TARGET_PRINTLN(TARGET_RADIUS);
 
 
   /***** Evaluate Results ******/

@@ -6,6 +6,13 @@
 
 */
 
+//TODO
+//Code to receive a command to update target location based on ground station message (is this useful??)
+//Code for commands to enable/disable in flight mode  (ie. disable pushbuttons once takeoff)
+//Code to program flaps to 'brake' mode (Ask mech if useful)
+
+
+
 #include "Arduino.h"
 #include "Communicator.h"
 #include <Servo.h>
@@ -26,11 +33,11 @@ Communicator::~Communicator() {}
 //static float GPSLatitudes[] = {4413.546, 4413.574, 4413.610, 4413.636, 4413.660};
 //static float GPSLongitudes[] = { -7629.504, -7629.507, -7629.509, -7629.513, -7629.514};
 
-static float GPSLatitudes[] = {4413.546, 4413.574, 4413.610, 4413.636, 4413.688};
-static float GPSLongitudes[] = { -7629.504, -7629.507, -7629.509, -7629.513, -7629.518};
+static float GPSLatitudes[] = {4413.546, 4413.574, 4413.610, 4413.636, 4413.668, 4413.688, 4413.718, 4413.7225, 4413.7241};
+static float GPSLongitudes[] = { -7629.504, -7629.507, -7629.509, -7629.513, -7629.509, -7629.500, -7629.496, -7629.490, -7629.490};
 // Points start at south end of bioscience complex and move North along Arch street
 
-static float altitudes[] = {100, 100, 100, 100, 100, 100, 100, 100, 100};
+static float altitudes[] = {100, 100, 100, 100, 100, 100, 100, 100, 100};  //FT
 static float velocities[] = {20, 20, 20, 20, 20, 20, 20, 20, 20};
 static float headings[] = {360, 360, 360, 360, 360, 360, 360, 360, 360};
 
@@ -57,7 +64,7 @@ void Communicator::initialize() {
   dropServo.writeMicroseconds(dropBayServoPos);
 
   int maxTries = 3, numTries = 0;
-  while (!initXBee() && ++numTries <= maxTries); //Keep trying to put into transparent mode until failure
+  while (!initXBee() && ++numTries < maxTries); //Keep trying to put into transparent mode until failure
 
   //Setup the GPS
   setupGPS();
@@ -283,25 +290,25 @@ void Communicator::recalculateTargettingNow(boolean withNewData) {
 
   if(withNewData) {
 
-    DEBUG_PRINTLN("\t Targeting Test: Recalaculating Targeting with New Data (Advancing a Point) \t");
+    TARGET_PRINTLN("\t Targeting Test: Recalaculating Targeting with New Data (Advancing a Point) \t");
     if (++currentTargeterDataPoint == NUM_TARGETER_DATAPTS) {      currentTargeterDataPoint = 0;   }
 
     isReadyToDrop = targeter.setAndCheckCurrentData(GPSLatitudes[currentTargeterDataPoint], GPSLongitudes[currentTargeterDataPoint], altitudes[currentTargeterDataPoint], velocities[currentTargeterDataPoint], headings[currentTargeterDataPoint], millis());
   }
   else {
-    DEBUG_PRINT("Targeting Test: Projecting Data Foward");
+    TARGET_PRINT("Targeting Test: Projecting Data Foward");
     isReadyToDrop = targeter.recalculate();
   }
 
 #else  //What we do when it's real GPS data
 
   if (withNewData) {
-    DEBUG_PRINTLN("\t Real GPS: Recalaculating Targeting with New Data \t");
+    TARGET_PRINTLN("\t Real GPS: Recalaculating Targeting with New Data \t");
     isReadyToDrop = targeter.setAndCheckCurrentData(GPS.latitude, GPS.longitude, altitudeFt, GPS.speedMPS, GPS.angle, millis());
 
   }
   else {
-    DEBUG_PRINT("Real GPS: Projecting Data Foward");
+    TARGET_PRINT("Real GPS: Projecting Data Foward");
     isReadyToDrop = targeter.recalculate();   
   }
 
@@ -309,20 +316,20 @@ void Communicator::recalculateTargettingNow(boolean withNewData) {
 
   //Interpret result the same, regardless of if it was a testing run
   if(!isReadyToDrop)  {
-    DEBUG_PRINTLN("\n NOT READY FOR DROP\n\n");        
+    TARGET_PRINTLN("\n NOT READY FOR DROP\n\n");        
   }
   //Check if it's already open (ie. don't want to update/change altitudeAtDropFt)
   else if (dropBayServoPos == DROP_BAY_OPEN) {
-      DEBUG_PRINTLN("Dropbay already open (otherwise wanted to drop)");   
+      TARGET_PRINTLN("Dropbay already open (otherwise wanted to drop)");   
   }
   //Check if autoDrop is enabled
   else if (!autoDrop) {
-      DEBUG_PRINTLN("\n\n AUTODROP DISABLED PREVENTING A DROP\n\n\n\n");    
+      TARGET_PRINTLN("\n\n AUTODROP DISABLED PREVENTING A DROP\n\n\n\n");    
   //If reach here, targeter wants a drop, dropbay is closed, and autodrop is enabled. Therefore, we open the drop bay!
   }
   else{
     setDropBayState(AUTOMATIC_CMD, DROPBAY_OPEN);
-    DEBUG_PRINTLN("\n\n ******************************* AUTOMATIC DROP *****************\n\n\n\n");
+    TARGET_PRINTLN("\n\n ******************************* AUTOMATIC DROP *****************\n\n\n\n");
   }
 
 
@@ -337,25 +344,24 @@ void Communicator::recalculateTargettingNow(boolean withNewData) {
 void Communicator::setDropBayState(int src, int state) {
   
   if (src == 1 && autoDrop == false && state == DROPBAY_OPEN){ //AutoDrop Protection  
-    #ifdef Targeter_Test
-      DEBUG_PRINT("Autodrop is disabled, preventing drop (src = ");
-      DEBUG_PRINT(src);
-      DEBUG_PRINT("   autoDrop = ");
-      DEBUG_PRINT(autoDrop);
-      DEBUG_PRINTLN(")");
-    #endif    
+    
+      TARGET_PRINT("Autodrop is disabled, preventing drop (src = ");
+      TARGET_PRINT(src);
+      TARGET_PRINT("   autoDrop = ");
+      TARGET_PRINT(autoDrop);
+      TARGET_PRINTLN(")");
+       
       return;
   }
 
   //Open/Close Drop Bay
   if (state == DROPBAY_CLOSE)  {
-    #ifdef Targeter_Test
-      DEBUG_PRINT("Closed bay door (src = ");
-      DEBUG_PRINT(src);
-      DEBUG_PRINT("   autoDrop = ");
-      DEBUG_PRINT(autoDrop);
-      DEBUG_PRINTLN(")");
-    #endif
+      
+      TARGET_PRINT("Closed bay door (src = ");
+      TARGET_PRINT(src);
+      TARGET_PRINT("   autoDrop = ");
+      TARGET_PRINT(autoDrop);
+      TARGET_PRINTLN(")");
 
     digitalWrite(STATUS_LED_PIN, LOW);
     dropBayServoPos = DROP_BAY_CLOSED;
@@ -363,11 +369,11 @@ void Communicator::setDropBayState(int src, int state) {
   }
   else {
 #ifdef Targeter_Test
-    DEBUG_PRINT("****** DROPPED ****** (src = ");
-    DEBUG_PRINT(src);
-    DEBUG_PRINT("   autoDrop = ");
-    DEBUG_PRINT(autoDrop);
-    DEBUG_PRINTLN(")");
+    TARGET_PRINT("****** DROPPED ****** (src = ");
+    TARGET_PRINT(src);
+    TARGET_PRINT("   autoDrop = ");
+    TARGET_PRINT(autoDrop);
+    TARGET_PRINTLN(")");
 #endif
     digitalWrite(STATUS_LED_PIN, HIGH);
     dropBayServoPos = DROP_BAY_OPEN;
@@ -388,11 +394,11 @@ void Communicator::checkToCloseDropBay() {
     unsigned long currentMillis = millis();
 
     if (currentMillis - timeAtDrop >= closeDropBayTimeout && currentMillis - timeAtDrop < closeDropBayTimeout + 10000) {
-#ifdef Targeter_Test
-      DEBUG_PRINT("Auto closing bay door (time passed = ");
-      DEBUG_PRINT((currentMillis - timeAtDrop));
-      DEBUG_PRINTLN(")");
-#endif
+
+      TARGET_PRINT("Auto closing bay door (time passed = ");
+      TARGET_PRINT((currentMillis - timeAtDrop));
+      TARGET_PRINTLN(")");
+
       setDropBayState(AUTOMATIC_CMD, DROPBAY_CLOSE);
     }
   }
@@ -413,7 +419,7 @@ void Communicator::setupGPS() {
   GPS_SERIAL.begin(GPS_BAUD);
 
   //Settings should persist over power off, but having problems with that - so set these
-  //TODO - check for responses, not blindly hope it worked
+  //TODO - check for responses, not blindly hope it worked. Seems to not send response (ignore working on this for now...)
   // Commands to configure GPS:
   GPS_SERIAL.println(PMTK_SET_NMEA_OUTPUT_RMCONLY);     // Set to only output GPRMC (has all the info we need),
   GPS_SERIAL.println(SET_NMEA_UPDATE_RATE_5HZ);     // Increase rate strings sent over serial

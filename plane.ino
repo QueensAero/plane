@@ -51,6 +51,7 @@ unsigned long prev_slow_time, prev_medium_time, prev_long_time;
 void setup() {
 
   DEBUG_BEGIN(DEBUG_SERIAL_BAUD); // This is to computer (this is ok even if not connected to computer)
+  TARGET_BEGIN(DEBUG_SERIAL_BAUD); //if either defined we start it (note it may restart if both defined)
 
   // Do this first so servos are hopefully good regardless if below fails/times out/gets 'stuck'
   initializeServos();
@@ -146,7 +147,8 @@ void loop() {
 
 
 
-// TODO: possibly flaps swtiching AND checking tail wheel demixing
+// TODO: possibly flaps swtiching (if down is +ve on one and -ve on other), and find optimal position
+//TODO: Tail wheel demixing
 void mediumLoop() {
 
 
@@ -175,7 +177,8 @@ void mediumLoop() {
 
   //TODO - may need to flip signal for left/right flaps
   if(pw_flaps != 0)
-  {
+  { 
+      //TODO - flaps incoming signal can be thought of as switch (so program value for switch high/low, and program switch threshold)
       l_flaps_servo.writeMicroseconds(pw_flaps);
       r_flaps_servo.writeMicroseconds(pw_flaps);   //ie. arguement map(pw_flaps, 1000, 2000, 2000, 1000); if need to flip
   }
@@ -353,6 +356,7 @@ int tail_wheel_demixing(int leftSignal, int rightSignal) {
 //Pusbuttons
 void isr_drop_pushbutton()
 {
+  /*
   //TODO - is guard below (for not in air) ok?  Have default disabled?
   if(comm.dropBayServoPos == DROP_BAY_OPEN)
   {
@@ -362,8 +366,11 @@ void isr_drop_pushbutton()
   { 
     //Only drop if near ground (prevent accidental activation in air??  
     comm.setDropBayState(MANUAL_CMD,DROPBAY_OPEN);
-
   }
+  */
+  //TODO - ensure doesn't become active on first push
+  //TODO - decide on altitude filtering
+  //TODO - debouncing (only accept trigger if >5s after previous push
 
     DEBUG_PRINTLN("Drop Pushbutton Pressed");
 
@@ -374,7 +381,9 @@ void isr_reset_pushbutton()
 
   DEBUG_PRINTLN("Reset Pushbutton Pressed");
   //TODO - have this do something
-
+  //TODO - ensure doesn't become active on first push
+  //TODO - decide on altitude filtering
+  //TODO - debouncing (only accept trigger if >5s after previous push
   
   
 }
