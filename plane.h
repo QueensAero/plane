@@ -41,8 +41,8 @@
 
 
 // System timing variables in microseconds
-#define SLOW_LOOP_TIME 250    //Xbee send packets of data 
-#define MEDIUM_LOOP_TIME 50   // Servo updating
+#define SLOW_LOOP_TIME  250  //250    //Xbee send packets of data 
+#define MEDIUM_LOOP_TIME 50  //50   // Servo updating
 #define FAST_LOOP_TIME 1  	  // MPU updating, if PID's then compute new servo values
 #define LONG_LOOP_TIME 500 	  // LED blinking
 
@@ -61,8 +61,7 @@ const int closeDropBayTimeout = 10000;
 #define TARGET_LONG -7629.492
 #define TARGET_ALTITUDE_M 0
 // 4413.682, -77629.518 = Passage between ILC and Walter Light Hall
-
-const double targetRaduis = 20; // meters
+#define TARGET_RADIUS 20 //meters
 
 
 // -------------------------------------------- DEBUG --------------------------------------------

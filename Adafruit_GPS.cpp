@@ -36,7 +36,7 @@ void Adafruit_GPS::init() {
   lat = lon = mag = 0; // char
   fix = false; // boolean
   milliseconds = 0; // uint16_t
-  latitude = longitude = geoidheight = altitude =	speedKnots = angle = magvariation = HDOP = 0.0; // float
+  latitude = longitude = geoidheight = altitude =	speedKnots = speedMPS = angle = magvariation = HDOP = 0.0; // float
   lat = lon = '0';
 
 }
@@ -168,6 +168,7 @@ boolean Adafruit_GPS::parse(char *nmea) {
     p = strchr(p, ',') + 1;
     if (',' != *p) {
       speedKnots = atof(p);
+      speedMPS = speedKnots*KNOTS_TO_METERS_PS;
     }
 
     // angle

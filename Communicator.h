@@ -8,8 +8,7 @@
 #include "Targeter.h"
 
 // Drop Bay Servo Details.
-#define DROP_BAY_CLOSED 1100
-#define DROP_BAY_OPEN 1900
+
 
 // MESSAGE CONSTANTS -- RECEIVE
 
@@ -38,37 +37,33 @@
 #define MESSAGE_BATTERY_V   'w'
 #define MESSAGE_ALT_AT_DROP 'a'
 
-
-// #define Servo pins
+//Drop Bay Details
 #define DROP_PIN 10
+#define DROP_BAY_CLOSED 1100
+#define DROP_BAY_OPEN 1900
+#define DROPBAY_OPEN 1
+#define DROPBAY_CLOSE 0
+#define AUTOMATIC_CMD 1
+#define MANUAL_CMD 0
 
+
+//XBee
 #define XBEE_BAUD 115200
-#define XBEE_SERIAL Serial3   //Serial3
+#define XBEE_SERIAL Serial3
 
 // GPS constants
 #define MAXLINELENGTH 120
 #define GPS_BAUD 9600
-//Below GPS vary based on the new PCB or Old PCB
-#define NEW_PCB
-#ifdef NEW_PCB
-    #define TX_TO_DISCONNECT 28 //These pins are unused anyways
-    #define RX_TO_DISCONNECT 29
-    #define GPS_SERIAL Serial1
-#else
-    #define TX_TO_DISCONNECT 18  // These are where the PCB traces go to. Due to a PCB error, TX went to TX, meaning nothing could to communicate. So we wired to Serial2 pins. But we need to makes sure these get disconnected
-    #define RX_TO_DISCONNECT 19
-    #define GPS_SERIAL Serial2   
-#endif
+#define GPS_SERIAL Serial1
+
 
 
 
 class Communicator {
 
   private:
-    int dropBayServoPos;
     Servo dropServo;
 
-    double altitudeAtDropFt;
     unsigned long timeAtDrop;
 
     //Initialize XBee by starting communication and putting in transparent mode
@@ -85,13 +80,14 @@ class Communicator {
   public:
 
     int currentTargeterDataPoint = -1;  //used for testing targeter
-    
-    double altitudeFt;
+    int dropBayServoPos;
+
+    double altitudeFt, altitudeAtDropFt;
 
     Communicator();
     ~Communicator();
     void initialize();
-    void dropNow(int src, int state);
+    void setDropBayState(int src, int state);
 
     boolean reset;
     boolean restart;

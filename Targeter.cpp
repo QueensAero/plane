@@ -9,7 +9,107 @@ Targeter::Targeter() {
 
 }
 
+// ------------------------------------ METHODS OF CALLING THIS CLASS ------------------------------------
+//(Either have new data, recalculate old data with new current time, or update target position)
+
+//Recalculate old data, with new dataAge (ie. horizDist now has the project of plane forward included)
+boolean Targeter::recalculate() {
+
+  if (!haveAPosition) //If we haven't set any data, then we can't try this or it will fail
+    return false;
+
+
+  DEBUG_PRINTLN("Recalculating Results: \n");
+  return performTargetCalcsAndEvaluateResults();
+
+}
+
+//Update the position with new data
+boolean Targeter::setAndCheckCurrentData(double _currentLatitude, double _currentLongitude, double _currentAltitudeFt, double _currentVelocityMPS, double _currentHeading, double _currentDataTimestamp) {
+
+  haveAPosition = true;
+
+  currentLatitude = _currentLatitude;
+  currentLongitude = _currentLongitude;
+  currentAltitudeM = _currentAltitudeFt * FT_TO_METERS;
+  currentVelocityMPS = _currentVelocityMPS;
+  currentHeading = _currentHeading;
+  currentDataTimestamp = _currentDataTimestamp;
+
+  // Get current coordinates (saved in currentEasting/currentNorthing)
+  convertDeg2UTM(convertDecimalDegMinToDegree(currentLatitude), convertDecimalDegMinToDegree(currentLongitude), currentEasting, currentNorthing);
+
+
+  DEBUG_PRINTLN("New Data Results: \n");
+  return performTargetCalcsAndEvaluateResults();
+
+}
+
+void Targeter::setTargetData(double _targetLatitude, double _targetLongitude, double _targetAltitudeM) {
+
+  targetLatitude = _targetLatitude;
+  targetLongitude = _targetLongitude;
+  targetAltitudeM = _targetAltitudeM;
+
+  //Update Target UTM Coordinates
+  convertDeg2UTM(convertDecimalDegMinToDegree(targetLatitude), convertDecimalDegMinToDegree(targetLongitude), targetEasting, targetNorthing);
+
+}
+
+
+
 // ------------------------------------ PHYSICAL CALCULATIONS ------------------------------------
+
+//The calls the 6 steps in correct order, then evaluates the results
+bool Targeter::performTargetCalcsAndEvaluateResults()
+{
+  /*****Update all variables (by calling FN's in order) *****/
+  calculateLateralError();
+  calculateDirectDistanceToTarget();
+  calculateDistAlongPathToMinLateralErr();
+  calculateHorizDistance(); 
+  calculateTimeTillDrop();
+  calculateDistFromEstDropPosToTarget();
+  
+
+  /*****DEBUGGING - print results *****/
+  DEBUG_PRINT("Easting = ");  DEBUG_PRINT(currentEasting);
+  DEBUG_PRINT("\t\tNorthing = ");  DEBUG_PRINT(currentNorthing);
+  DEBUG_PRINT("\t\tTarget.easting = ");  DEBUG_PRINT(targetEasting);
+  DEBUG_PRINT("\t\tTarget.northing = ");  DEBUG_PRINTLN(targetNorthing);
+  
+  DEBUG_PRINT("Alt (M) = ");  DEBUG_PRINT(targetAltitudeM );
+  DEBUG_PRINT("\t\tVel = ");  DEBUG_PRINT(currentVelocityMPS);
+  DEBUG_PRINT("\t\tHeading = ");  DEBUG_PRINT(currentHeading);
+  DEBUG_PRINT("\t\tTimestamp = ");  DEBUG_PRINTLN(currentDataTimestamp);
+
+  DEBUG_PRINT("Lateral error = ");  DEBUG_PRINTLN(lateralError);
+  DEBUG_PRINT("Direct Dist to Target = "); DEBUG_PRINTLN(directDistanceToTarget);
+  DEBUG_PRINT("Distance to min lateral err = ");  DEBUG_PRINTLN(distAlongPathToMinLateralErr);
+  DEBUG_PRINT("Horizontal dist from drop, dataAge, dropDelay = "); DEBUG_PRINTLN(horizDistance);
+  DEBUG_PRINT("Time until drop = ");  DEBUG_PRINTLN(timeTillDrop);
+  DEBUG_PRINT("Dist from drop loc to target = ");  DEBUG_PRINTLN(distFromEstDropPosToTarget);
+  DEBUG_PRINT("Target radius = ");  DEBUG_PRINTLN(TARGET_RADIUS);
+
+
+  /***** Evaluate Results ******/
+  // 1. We update every 50ms, so if much higher than that we want to wait to drop closer to center
+  if (timeTillDrop > 0.2) //200 ms * 15 m/s = 3 m, not really a worry of dropping early
+    return false;
+
+  // 2. We NEED be in the rings at the drop point
+  if (distFromEstDropPosToTarget > TARGET_RADIUS)
+    return false;
+
+  // 3. There was thought to add details about if we are heading away from target (ie. drop asap or something?)
+  // However I believe that is captured above be having the 'timeToDrop' test search for greater than (and no less than condition)
+
+  // We are now close enough to be in rings, and if under 0.2 we want to drop
+  return true; 
+}
+
+
+
 
 /*
      Step 1
@@ -17,49 +117,15 @@ Targeter::Targeter() {
      to the location of the target.
 */
 
-double Targeter::calculateLateralError() {
-  // See "Line defined by two points" at
-  // https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
-  // From the wikipedia equation:
-  // P1 => prevPos
-  // P2 => curPos
-  // (x0, y0) => targetPos
-
-
-
-
-#ifdef Targeter_Test
-
-  DEBUG_PRINTLN("");
-  DEBUG_PRINTLN("[LATERAL ERROR CALCULATION]");
-  DEBUG_PRINTLN("");
-
-  DEBUG_PRINT("easting = ");
-  DEBUG_PRINT(currentEasting);
-  DEBUG_PRINT("   northing = ");
-  DEBUG_PRINT(currentNorthing);
-
-  DEBUG_PRINT("   target.easting = ");
-  DEBUG_PRINT(targetEasting);
-  DEBUG_PRINT("   target.northing = ");
-  DEBUG_PRINTLN(targetNorthing);
-
-#endif
+void Targeter::calculateLateralError() {
+  // See "Line defined by two points" at https://en.wikipedia.org/wiki/Distance_from_a_point_to_a_line
+  // From the wikipedia equation: P1 => prevPos, P2 => curPos, and (x0, y0) => targetPos
 
   // P1:
   // Generate an arbitrary point to define the line (far enough away to avoid rounding errors)
   double currentHeadingMathAngle = convertHeadingToMathAngle(currentHeading);
   double x1 = currentEasting + cos(currentHeadingMathAngle / 180 * PI) * 2000;
   double y1 = currentNorthing + sin(currentHeadingMathAngle / 180 * PI) * 2000;
-
-#ifdef Targeter_Test
-
-  DEBUG_PRINT("x1 = ");
-  DEBUG_PRINT(x1);
-  DEBUG_PRINT("   y1 = ");
-  DEBUG_PRINTLN(y1);
-
-#endif
 
   // P2:
   double x2 = currentEasting;
@@ -76,28 +142,12 @@ double Targeter::calculateLateralError() {
   numerator -= y2 * x1;
   numerator = abs(numerator);
 
-#ifdef Targeter_Test
-
-  DEBUG_PRINT("Numerator = ");
-  DEBUG_PRINTLN(numerator);
-
-#endif
-
   // Calculate denominator in equation:
   double denominator = pow(y2 - y1, 2.0);
   denominator += pow(x2 - x1, 2.0);
   denominator = sqrt(denominator);
 
-#ifdef Targeter_Test
-
-  DEBUG_PRINT("Denominator = ");
-  DEBUG_PRINTLN(denominator);
-
-#endif
-
   lateralError = numerator / denominator;
-
-  return lateralError;
 }
 
 /*
@@ -105,11 +155,10 @@ double Targeter::calculateLateralError() {
    Calculates direct distance from current position to the target.
 */
 
-double Targeter::calculateDirectDistanceToTarget() {
+void Targeter::calculateDirectDistanceToTarget() {
 
   // Use pythagorean theorem to calculate distance between curPos and targetPos:
-  double dist = sqrt(pow((targetEasting - currentEasting), 2) + pow((targetNorthing - currentNorthing), 2));
-  return dist;
+  directDistanceToTarget =  sqrt(pow((targetEasting - currentEasting), 2) + pow((targetNorthing - currentNorthing), 2));
 }
 
 
@@ -119,21 +168,19 @@ double Targeter::calculateDirectDistanceToTarget() {
    Note: Relies on the fact that an accurate lateral error has already been calculated
 */
 
-double Targeter::calculatePathDistanceToTarget() {
-  double dist = 0;
-  dist = sqrt(pow(calculateDirectDistanceToTarget(), 2) - pow(lateralError, 2));
-  //System.out.print("Distance to target along path: ");
-  //System.out.println(dist);
-  return dist;
+void Targeter::calculateDistAlongPathToMinLateralErr() {
+  distAlongPathToMinLateralErr = sqrt(pow(directDistanceToTarget, 2) - pow(lateralError, 2));
 }
 
 
 /*
    Step 4
    Calculates how early (distance in m before being above the target) the
-   package must be dropped based on current speed and altitude.
+   package must be dropped based on current speed, altitude, DataTimestamp and servo opening delay.
+   Note - this accounts for data age AND a delay for the servo opening
 
-   *** Note: right now this is ignores air resistance and is very unrealistic.
+
+   *** Note: right now this picks a value for air resistance and is unrealistic.
    Some thoughts on air resistance: terminal falling velocity 35-45 m/s ish, which would be reached at 4.1s or 82m / 270ft
    It will accelerate slower once above low speeds
    @ 10 m/s estimated air resistance acceleration would be -0.6 m/s^2. If fall time on the order of 3s, this would
@@ -142,23 +189,25 @@ double Targeter::calculatePathDistanceToTarget() {
    Overall approximation of 0.9 correction factor
    See MATLAB script for more details
 */
-const double CORRECTION_FACTOR = 0.9;
+#define CORRECTION_FACTOR 0.9
 
-double Targeter::calculateDropDistance() {
+void Targeter::calculateHorizDistance() {
 
   // targetPos.getAltitude() will probably be 0, but I included it just in case:
   double heightm = (currentAltitudeM - targetAltitudeM);
 
   // Calculate time for payload to fall:
   if (heightm < 0) {
-    heightm = 0;  //prevent NaN from sqrt
+    heightm = 0;  //prevent NaN from sqrt (altimeter noise may make it less than 0 often on the ground)
   }
 
   double fallTime = sqrt(2 * heightm / 9.807); // time in seconds
 
   // Calculate horizontal distance that payload will travel in this time:
-  dropHorizDistance = currentVelocity * fallTime * CORRECTION_FACTOR;
-  return dropHorizDistance;
+  double distanceDuringFall = currentVelocityMPS * fallTime * CORRECTION_FACTOR;
+  double distanceFromDataAge = currentVelocityMPS*(millis() - currentDataTimestamp)/1000;
+  double distanceFromServoOpenDelay = currentVelocityMPS*SERVO_OPEN_DELAY/1000;
+  horizDistance = distanceDuringFall  + distanceFromDataAge  + distanceFromServoOpenDelay;
 }
 
 
@@ -166,188 +215,34 @@ double Targeter::calculateDropDistance() {
    Step 5
    Calculates time until optimal drop location.
 */
-
-double Targeter::calculateTimeToDrop() {
-  double distRemaining = dropDistanceToTarget();
-  double adjustedDistRemaining = distRemaining - currentVelocity * ((millis() - currentDataAge + SERVO_OPEN_DELAY) / 1000);  //Account for the fact we want to check for drop condition faster than it updates
-  //Assume same heading and velocity, and multiply currentVelocity*tSinceDataReceived
-
-  // t = d/v
-  timeToDrop = adjustedDistRemaining / currentVelocity;
-  return timeToDrop;
-
+void Targeter::calculateTimeTillDrop() {
+  timeTillDrop = (distAlongPathToMinLateralErr - horizDistance) / currentVelocityMPS;
 }
 
-double Targeter::dropDistanceToTarget() {
-  return calculatePathDistanceToTarget() - calculateDropDistance();
-}
 
-//Only call after calculateTimeToDrop
-void Targeter::calculateEstDropPositionAndDist() {
-
-  DEBUG_PRINTLN("");
-  DEBUG_PRINTLN("[Calculate Estimated Drop Position And Dist]");
-  DEBUG_PRINTLN("");
+/*
+  Step 6 
+  Calculate where we end up in relation to target 
+ */
+ 
+ void Targeter::calculateDistFromEstDropPosToTarget() {
 
   double currentHeadingMathAngle = convertHeadingToMathAngle(currentHeading);
+  estDropEasting = currentEasting + cos(currentHeadingMathAngle / 180 * PI) * horizDistance;
+  estDropNorthing = currentNorthing + sin(currentHeadingMathAngle / 180 * PI) * horizDistance;
 
-  DEBUG_PRINT("Current heading (math angle) = ");
-  DEBUG_PRINTLN(currentHeadingMathAngle);
-
-  estDropEasting = currentEasting + cos(currentHeadingMathAngle / 180 * PI) * dropHorizDistance;
-  estDropNorthing = currentNorthing + sin(currentHeadingMathAngle / 180 * PI) * dropHorizDistance;
-
-  DEBUG_PRINT("Estimated drop easting = ");
-  DEBUG_PRINTLN(estDropEasting);
-  
-  DEBUG_PRINT("Estimated drop northing = ");
-  DEBUG_PRINTLN(estDropNorthing);
-
-  DEBUG_PRINT("Target easting = ");
-  DEBUG_PRINTLN(targetEasting);
-
-  DEBUG_PRINT("Target northing = ");
-  DEBUG_PRINTLN(targetNorthing);
-
-  estDropPosDistToTarget = sqrt(pow(targetNorthing - estDropNorthing, 2) + pow(targetEasting - estDropEasting, 2));
+  distFromEstDropPosToTarget = sqrt(pow(targetNorthing - estDropNorthing, 2) + pow(targetEasting - estDropEasting, 2));
 
 }
 
 
-//ONLY call after    calculateLateralError();  &   calculateTimeToDrop();
-bool Targeter::evaluateDropCriteria() {
-
-  // 1. We update every 50ms, so if much higher than that we want to wait to drop closer to center
-  if (timeToDrop > 0.2) //200 ms * 15 m/s = 3 m, not really a worry of dropping early
-    return false;
-
-  // 2. We NEED be in the rings at the drop point
-  if (estDropPosDistToTarget > targetRaduis)
-    return false;
-
-  // 3. There was thought to add details about if we are heading away from target (ie. drop asap or something?)
-  // However I believe that is captured above be having the 'timeToDrop' test search for greater than (and no less than condition)
-
-  // We are now close enough to be in rings, and if under 0.2 we want to drop
-  return true;
-
-}
 
 
-// ------------------------------------ GETTERS ------------------------------------
 
-boolean Targeter::recalculate() {
 
-  if (!haveAPosition) //If we haven't set any data, then we can't try this or it will fail
-    return false;
+// ------------------------------------ CONVERSIONS -----------------------------------
 
-#ifdef Targeter_Test
-  DEBUG_PRINTLN("Recalculating between data points...");
-#endif
-
-  calculateLateralError();
-  calculateTimeToDrop();
-  calculateEstDropPositionAndDist();
-
-#ifdef Targeter_Test
-  DEBUG_PRINT("Lateral error = ");
-  DEBUG_PRINTLN(lateralError);
-  DEBUG_PRINT("Time to drop = ");
-  DEBUG_PRINTLN(timeToDrop);
-  DEBUG_PRINT("Distance to optimal drop distance = ");
-  DEBUG_PRINTLN(dropDistanceToTarget());
-  DEBUG_PRINT("Path distance to target = ");
-  DEBUG_PRINTLN(calculatePathDistanceToTarget());
-  DEBUG_PRINT("Estimated distance from drop point to target = ");
-  calculateEstDropPositionAndDist();
-  DEBUG_PRINTLN(estDropPosDistToTarget);
-  DEBUG_PRINT("Target radius = ");
-  DEBUG_PRINTLN(targetRaduis);
-#endif
-
-  return evaluateDropCriteria();
-
-}
-
-double Targeter::getLateralError() {
-  return lateralError;
-}
-
-double Targeter::getTimeToDrop() {
-  return timeToDrop;
-}
-
-// ------------------------------------ SETTERS ------------------------------------
-
-boolean Targeter::setAndCheckCurrentData(double _currentLatitude, double _currentLongitude, double _currentAltitudeFt, double _currentVelocity, double _currentHeading, double _currentDataAge) {
-
-#ifdef Targeter_Test
-  DEBUG_PRINT("Setting current data...(lat = ");
-  DEBUG_PRINT(_currentLatitude);
-  DEBUG_PRINT("   lon = ");
-  DEBUG_PRINT(_currentLongitude);
-  DEBUG_PRINT("   alt (Ft) = ");
-  DEBUG_PRINT(_currentAltitudeFt);
-  DEBUG_PRINT("   vel = ");
-  DEBUG_PRINT(_currentVelocity);
-  DEBUG_PRINT("   heading = ");
-  DEBUG_PRINT(_currentHeading);
-  DEBUG_PRINT("   age = ");
-  DEBUG_PRINT(_currentDataAge);
-  DEBUG_PRINTLN(")");
-#endif
-
-  haveAPosition = true;
-
-  currentLatitude = _currentLatitude;
-  currentLongitude = _currentLongitude;
-
-  currentAltitudeM = _currentAltitudeFt * FT_TO_METERS;
-  currentVelocity = _currentVelocity;
-  currentHeading = _currentHeading;
-
-  currentDataAge = _currentDataAge;
-
-  // Get current coordinates (saved in currentEasting/currentNorthing)
-  convertDeg2UTM(convertDecimalDegMinToDegree(currentLatitude), convertDecimalDegMinToDegree(currentLongitude), currentEasting, currentNorthing);
-
-  calculateLateralError();
-  calculateTimeToDrop();
-  calculateEstDropPositionAndDist();
-
-#ifdef Targeter_Test
-  DEBUG_PRINT("Lateral error = ");
-  DEBUG_PRINTLN(lateralError);
-  DEBUG_PRINT("Time to drop = ");
-  DEBUG_PRINTLN(timeToDrop);
-  DEBUG_PRINT("Distance to optimal drop distance = ");
-  DEBUG_PRINTLN(dropDistanceToTarget());
-  DEBUG_PRINT("Path distance to target = ");
-  DEBUG_PRINTLN(calculatePathDistanceToTarget());
-  DEBUG_PRINT("Estimated distance from drop point to target = ");
-  calculateEstDropPositionAndDist();
-  DEBUG_PRINTLN(estDropPosDistToTarget);
-  DEBUG_PRINT("Target radius = ");
-  DEBUG_PRINTLN(targetRaduis);
-#endif
-
-  return evaluateDropCriteria();
-
-}
-
-void Targeter::setTargetData(double _targetLatitude, double _targetLongitude, double _targetAltitudeM) {
-
-  targetLatitude = _targetLatitude;
-  targetLongitude = _targetLongitude;
-  targetAltitudeM = _targetAltitudeM;
-
-  //Update Target UTM Coordinates
-  convertDeg2UTM(convertDecimalDegMinToDegree(targetLatitude), convertDecimalDegMinToDegree(targetLongitude), targetEasting, targetNorthing);
-
-}
-
-// ------------------------------------ CONVERT HEADING TO ANGLE ------------------------------------
-
+//A heading (ie. N = 0 degrees) into a math angle (typical x/y origin, x axis = 0 degrees)
 double Targeter::convertHeadingToMathAngle(double heading) {
   // Transform from compass degrees to typical math degrees
   double angle = -1 * (heading - 90);
@@ -357,8 +252,7 @@ double Targeter::convertHeadingToMathAngle(double heading) {
   return angle;
 }
 
-// ------------------------------------ CONVERT LAT/LON DEGREES TO UTM COORDINATES ------------------------------------
-
+//lat/long in decimal degree minutes ---> degrees
 double Targeter::convertDecimalDegMinToDegree(double decimalDegreeMin) {  //accepts format AAAYY.ZZZZZ  AAA = degrees,, YY = minutes,  ZZZZZZ = decimal minutes
   // Assumes the N/S & E/W sign convention is followed (N = +ve, W = -ve).
   // This is currently done in MainWindow in analyzePacket
@@ -368,60 +262,60 @@ double Targeter::convertDecimalDegMinToDegree(double decimalDegreeMin) {  //acce
   return baseDegree + baseDegMins / 60.0; // 1 degree minute = 1/60 degrees
 }
 
-//This expects data to be in degrees (NOT decimal degree minutes)
-void Targeter::convertDeg2UTM(double lat, double lon, double &utmEasting, double &utmNorthing) {
+
+//Convert degrees GPS data into UTM
+void Targeter::convertDeg2UTM(double latDegrees, double longDegrees, double &utmEasting, double &utmNorthing) {
 
   char utmLetter;
-  int utmZone = (int) floor(lon / 6 + 31);
+  int utmZone = (int) floor(longDegrees / 6 + 31);
 
-  if (lat < -72)
+  if (latDegrees < -72)
     utmLetter = 'C';
-  else if (lat < -64)
+  else if (latDegrees < -64)
     utmLetter = 'D';
-  else if (lat < -56)
+  else if (latDegrees < -56)
     utmLetter = 'E';
-  else if (lat < -48)
+  else if (latDegrees < -48)
     utmLetter = 'F';
-  else if (lat < -40)
+  else if (latDegrees < -40)
     utmLetter = 'G';
-  else if (lat < -32)
+  else if (latDegrees < -32)
     utmLetter = 'H';
-  else if (lat < -24)
+  else if (latDegrees < -24)
     utmLetter = 'J';
-  else if (lat < -16)
+  else if (latDegrees < -16)
     utmLetter = 'K';
-  else if (lat < -8)
+  else if (latDegrees < -8)
     utmLetter = 'L';
-  else if (lat < 0)
+  else if (latDegrees < 0)
     utmLetter = 'M';
-  else if (lat < 8)
+  else if (latDegrees < 8)
     utmLetter = 'N';
-  else if (lat < 16)
+  else if (latDegrees < 16)
     utmLetter = 'P';
-  else if (lat < 24)
+  else if (latDegrees < 24)
     utmLetter = 'Q';
-  else if (lat < 32)
+  else if (latDegrees < 32)
     utmLetter = 'R';
-  else if (lat < 40)
+  else if (latDegrees < 40)
     utmLetter = 'S';
-  else if (lat < 48)
+  else if (latDegrees < 48)
     utmLetter = 'T';
-  else if (lat < 56)
+  else if (latDegrees < 56)
     utmLetter = 'U';
-  else if (lat < 64)
+  else if (latDegrees < 64)
     utmLetter = 'V';
-  else if (lat < 72)
+  else if (latDegrees < 72)
     utmLetter = 'W';
   else
     utmLetter = 'X';
 
-  utmEasting = 0.5 * log((1 + cos(lat * PI / 180) * sin(lon * PI / 180 - (6 * utmZone - 183) * PI / 180)) / (1 - cos(lat * PI / 180) * sin(lon * PI / 180 - (6 * utmZone - 183) * PI / 180))) * 0.9996 * 6399593.62 / pow((1 + pow(0.0820944379, 2) * pow(cos(lat * PI / 180), 2)), 0.5) * (1 + pow(0.0820944379, 2) / 2 * pow((0.5 * log((1 + cos(lat * PI / 180) * sin(lon * PI / 180 - (6 * utmZone - 183) * PI / 180)) / (1 - cos(lat * PI / 180) * sin(lon * PI / 180 - (6 * utmZone - 183) * PI / 180)))), 2) * pow(cos(lat * PI / 180), 2) / 3) + 500000;
+  utmEasting = 0.5 * log((1 + cos(latDegrees * PI / 180) * sin(longDegrees * PI / 180 - (6 * utmZone - 183) * PI / 180)) / (1 - cos(latDegrees * PI / 180) * sin(longDegrees * PI / 180 - (6 * utmZone - 183) * PI / 180))) * 0.9996 * 6399593.62 / pow((1 + pow(0.0820944379, 2) * pow(cos(latDegrees * PI / 180), 2)), 0.5) * (1 + pow(0.0820944379, 2) / 2 * pow((0.5 * log((1 + cos(latDegrees * PI / 180) * sin(longDegrees * PI / 180 - (6 * utmZone - 183) * PI / 180)) / (1 - cos(latDegrees * PI / 180) * sin(longDegrees * PI / 180 - (6 * utmZone - 183) * PI / 180)))), 2) * pow(cos(latDegrees * PI / 180), 2) / 3) + 500000;
   utmEasting = round(utmEasting * 100) * 0.01;
-  utmNorthing = (atan(tan(lat * PI / 180) / cos((lon * PI / 180 - (6 * utmZone - 183) * PI / 180))) - lat * PI / 180) * 0.9996 * 6399593.625 / sqrt(1 + 0.006739496742 * pow(cos(lat * PI / 180), 2)) * (1 + 0.006739496742 / 2 * pow(0.5 * log((1 + cos(lat * PI / 180) * sin((lon * PI / 180 - (6 * utmZone - 183) * PI / 180))) / (1 - cos(lat * PI / 180) * sin((lon * PI / 180 - (6 * utmZone - 183) * PI / 180)))), 2) * pow(cos(lat * PI / 180), 2)) + 0.9996 * 6399593.625 * (lat * PI / 180 - 0.005054622556 * (lat * PI / 180 + sin(2 * lat * PI / 180) / 2) + 4.258201531e-05 * (3 * (lat * PI / 180 + sin(2 * lat * PI / 180) / 2) + sin(2 * lat * PI / 180) * pow(cos(lat * PI / 180), 2)) / 4 - 1.674057895e-07 * (5 * (3 * (lat * PI / 180 + sin(2 * lat * PI / 180) / 2) + sin(2 * lat * PI / 180) * pow(cos(lat * PI / 180), 2)) / 4 + sin(2 * lat * PI / 180) * pow(cos(lat * PI / 180), 2) * pow(cos(lat * PI / 180), 2)) / 3);
+  utmNorthing = (atan(tan(latDegrees * PI / 180) / cos((longDegrees * PI / 180 - (6 * utmZone - 183) * PI / 180))) - latDegrees * PI / 180) * 0.9996 * 6399593.625 / sqrt(1 + 0.006739496742 * pow(cos(latDegrees * PI / 180), 2)) * (1 + 0.006739496742 / 2 * pow(0.5 * log((1 + cos(latDegrees * PI / 180) * sin((longDegrees * PI / 180 - (6 * utmZone - 183) * PI / 180))) / (1 - cos(latDegrees * PI / 180) * sin((longDegrees * PI / 180 - (6 * utmZone - 183) * PI / 180)))), 2) * pow(cos(latDegrees * PI / 180), 2)) + 0.9996 * 6399593.625 * (latDegrees * PI / 180 - 0.005054622556 * (latDegrees * PI / 180 + sin(2 * latDegrees * PI / 180) / 2) + 4.258201531e-05 * (3 * (latDegrees * PI / 180 + sin(2 * latDegrees * PI / 180) / 2) + sin(2 * latDegrees * PI / 180) * pow(cos(latDegrees * PI / 180), 2)) / 4 - 1.674057895e-07 * (5 * (3 * (latDegrees * PI / 180 + sin(2 * latDegrees * PI / 180) / 2) + sin(2 * latDegrees * PI / 180) * pow(cos(latDegrees * PI / 180), 2)) / 4 + sin(2 * latDegrees * PI / 180) * pow(cos(latDegrees * PI / 180), 2) * pow(cos(latDegrees * PI / 180), 2)) / 3);
 
   if (utmLetter < 'M') {
     utmNorthing = utmNorthing + 10000000;
   }
-
   utmNorthing = round(utmNorthing * 100) * 0.01;
 }

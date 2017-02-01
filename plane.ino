@@ -205,8 +205,6 @@ void mediumLoop() {
 // slow loop was timed to take between 1.3 and 1.7ms.
 void slowLoop() {
 
-  //unsigned long loopStartTime = millis(); // For testing timing
-
   // Get latest altitude data
   double altitudeReadInFt = altimeter.getAltitudeFt(false);
 
@@ -227,8 +225,6 @@ void slowLoop() {
 
   }
 
-  //unsigned long loopEndTime = millis(); //for testing timing
-
   #ifdef Targeter_Test
     comm.recalculateTargettingNow(true);
   #endif
@@ -247,6 +243,7 @@ void slowLoop() {
     resetDAS();
     comm.sendMessage(MESSAGE_RESET_AKN);
     didGetZeroAltitudeLevel = false; //re-zero
+    comm.altitudeAtDropFt = -1;  //also reset the altitude at drop
 
   }
 
@@ -256,12 +253,7 @@ void slowLoop() {
     resetDAS();
     comm.sendMessage(MESSAGE_RESTART_AKN);
     didGetZeroAltitudeLevel = false; //re-zero
-
   }
-
-  //SerialUSB.print("Reading time: ");
-  //SerialUSB.println(loopEndTime - loopStartTime);
-
 }
 
 void longLoop() {
@@ -364,18 +356,13 @@ void isr_drop_pushbutton()
   //TODO - is guard below (for not in air) ok?  Have default disabled?
   if(comm.dropBayServoPos == DROP_BAY_OPEN)
   {
-    comm.dropNow(0,0);  //close drop bay    
+    comm.setDropBayState(MANUAL_CMD,DROPBAY_CLOSE);  //close drop bay    
   }
-  else if(comm.altitudeFt < 10 && )
+  else if(comm.altitudeFt < 10)
   { 
     //Only drop if near ground (prevent accidental activation in air??  
-    comm.dropNow(0,1);
+    comm.setDropBayState(MANUAL_CMD,DROPBAY_OPEN);
 
-  }
-  else
-  {
-
-    
   }
 
     DEBUG_PRINTLN("Drop Pushbutton Pressed");
@@ -387,6 +374,9 @@ void isr_reset_pushbutton()
 
   DEBUG_PRINTLN("Reset Pushbutton Pressed");
   //TODO - have this do something
+
+  
+  
 }
 
 

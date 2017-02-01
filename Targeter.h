@@ -9,22 +9,14 @@ class Targeter {
   
   public:
     Targeter();
-
-    boolean recalculate(void);
-
-    // ------------------------------------ GETTERS ------------------------------------
-
-    double getLateralError(void);
-    double getTimeToDrop(void);
-
-    // ------------------------------------ SETTERS ------------------------------------
-
-    boolean setAndCheckCurrentData(double _currentLatitude, double _currentLongitude, double _currentAltitudeFt, double _currentVelocity, double _currentHeading, double _currentDataAge);
+    boolean recalculate();
+    boolean setAndCheckCurrentData(double _currentLatitude, double _currentLongitude, double _currentAltitudeFt, double _currentVelocityMPS, double _currentHeading, double _currentDataTimestamp);
     void setTargetData(double _targetLatitude, double _targetLongitude, double _targetAltitudeM);
 
   private:
 
-    const double CORRECTION_FACTOR = 0.9;
+    //Correct factors (these are not tuned/tested!!)
+    #define CORRECTION_FACTOR = 0.9;  //for air resistance
     #define SERVO_OPEN_DELAY 250 //ms
 
     // ------------------------------------ CURRENT POSITION ------------------------------------
@@ -34,10 +26,9 @@ class Targeter {
     double currentLatitude = 0;
     double currentLongitude = 0;
     double currentAltitudeM = 0; // m
-    double currentDataAge = 0; // millis
-    double currentVelocity = 0;
+    double currentDataTimestamp = 0; // millis
+    double currentVelocityMPS = 0;  //m/s
     double currentHeading = 0; // In degrees (E = 0, N = 90, W = 180, S = 270)
-
     double currentEasting = 0, currentNorthing = 0;
     double estDropEasting = 0, estDropNorthing = 0;
 
@@ -50,32 +41,43 @@ class Targeter {
     double targetAltitudeM; // m
     double targetEasting = -10000000, targetNorthing = -10000000;  //MAKE different than initial currentEast/North, or it may autodrop on startup
 
-    // ------------------------------------ CALCULATED POSITION ------------------------------------
-
-    // Calculated values
-    double lateralError; //m
-    double timeToDrop;  //seconds
-    double dropHorizDistance;
-    double estDropPosDistToTarget;
 
     // ------------------------------------ PHYSICAL CALCULATIONS ------------------------------------
 
-    double calculateLateralError(void);   //On current heading, what is the closest we come to target
-    double calculateDirectDistanceToTarget(void);  //'As the crow flies', not based on current heading
-    double calculatePathDistanceToTarget(void);   //How far along our path until the point of min distance to target (third side of trianlge, with hyp = calculateDirectDistanceToTarget, opp = lateralError)
-    double calculateDropDistance(void);  //horizontal distance travelled while falling
-    double calculateTimeToDrop(void);   //How long until we should drop
-    double dropDistanceToTarget(void);   //PathDistanceToTarget  -  DropDistance   (ie. If we dropped now, what is dist to point where lateral error is a minimum (and thus DirectDistToTarget is minimum). May be negative is passed 
-                                         //Note this function ignores any 'stale' data assumtions/projecting plane position forward 
-    void calculateEstDropPositionAndDist(void);
-    bool evaluateDropCriteria();
-                                         
+    //ENCOMPASSING: call this to call 6 functions in order, evaluate results, and return true (ie. drop) or false (not yet)
+    bool performTargetCalcsAndEvaluateResults();  //Call the following functions (in correct order) to update all targeting variables
 
-    // ------------------------------------ CONVERT LAT/LON DEGREES TO UTM COORDINATES ------------------------------------
+    //None of the following should be called outside the above function
+    //Step 1:
+    void calculateLateralError();   //On current heading, what is the closest we come to target
+    double lateralError; //m
+
+    //Step 2:
+    void calculateDirectDistanceToTarget();  //'As the crow flies' distance to target, not based on current heading
+    double directDistanceToTarget;
+
+    //Step 3:
+    void calculateDistAlongPathToMinLateralErr();   //How far along our path until the point of min distance to target (third side of trianlge, with hyp = calculateDirectDistanceToTarget, opp = lateralError)
+    double distAlongPathToMinLateralErr;
+
+    //Step 4:
+    void calculateHorizDistance();  //horizontal distance travelled from data age, servo open delay, and during the fall
+    double horizDistance;
+
+    //Step 5:
+    void calculateTimeTillDrop();   //How long until we should drop
+    double timeTillDrop;
+
+    //Step 6:
+    void calculateDistFromEstDropPosToTarget();  //distance from where we are estimated to drop (currently) to the target. MUST be <ringRadius if we want to drop 
+    double distFromEstDropPosToTarget;
+                                
+
+    // ------------------------------------ CONVERSIONS ------------------------------------
     
     double convertHeadingToMathAngle(double);
     double convertDecimalDegMinToDegree(double);
-    void convertDeg2UTM(double, double, double &, double &);
+    void convertDeg2UTM(double lattDegrees, double longDegrees, double &utmEasting, double &utmNorthing);
 
 };
 

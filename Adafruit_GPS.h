@@ -85,6 +85,10 @@
 #define PGCMD_ANTENNA "$PGCMD,33,1*6C"
 #define PGCMD_NOANTENNA "$PGCMD,33,0*6D"
 
+
+#define KNOTS_TO_METERS_PS 0.514444
+
+
 // how long to wait when we're looking for a response
 #define MAXWAITSENTENCE 5
 
@@ -111,7 +115,7 @@ class Adafruit_GPS {
     int32_t latitude_fixed, longitude_fixed;
     float latitudeDegrees, longitudeDegrees;
     float geoidheight, altitude;
-    float speedKnots, angle, magvariation, HDOP;
+    float speedKnots, speedMPS, angle, magvariation, HDOP;
     char lat, lon, mag;
     boolean fix;
     uint8_t fixquality, satellites;
