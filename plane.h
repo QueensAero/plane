@@ -85,9 +85,10 @@ const int closeDropBayTimeout = 10000;
 #endif
 
 // Tests the targeting system with pre-defined GPS datapoints
-#define Targeter_Test
+//#define Targeter_Test
+//#define Targeter_Debug_Print  //ONLY WANT MINIMUM STUFF
 //same thing with targeting debugging (Note - includes 'drop' and 'closeDropBay' functions
-#ifdef Targeter_Test
+#if defined(Targeter_Test) || defined(Targeter_Debug_Print)
   #define TARGET_SERIAL Serial
   #define TARGET_PRINT(x) TARGET_SERIAL.print(x)
   #define TARGET_PRINTLN(x) TARGET_SERIAL.println(x)

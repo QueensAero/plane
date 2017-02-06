@@ -31,7 +31,7 @@ volatile unsigned long pwm_l_vtail_end = 0, pwm_r_vtail_end = 0, pwm_l_aileron_e
 
 
 //Control what the MUX output comes from
-bool ctrl_sig_from_arduino = false;
+bool ctrl_sig_from_arduino = true;
 bool flaps_sig_from_arduino = true;
 
 
@@ -52,6 +52,9 @@ void setup() {
 
   DEBUG_BEGIN(DEBUG_SERIAL_BAUD); // This is to computer (this is ok even if not connected to computer)
   TARGET_BEGIN(DEBUG_SERIAL_BAUD); //if either defined we start it (note it may restart if both defined)
+
+  Serial.begin(115200);
+  Serial.println("starting");
 
   // Do this first so servos are hopefully good regardless if below fails/times out/gets 'stuck'
   initializeServos();
@@ -152,17 +155,25 @@ void loop() {
 void mediumLoop() {
 
 
+  Serial.print("LAil: "); Serial.print(pw_l_aileron); 
+  Serial.print("\tRAil - is flaps: "); Serial.print(pw_r_aileron); //Not needed/used -> aileron are just opposite signal
+  Serial.print("\tLVTail: "); Serial.print(pw_l_vtail); 
+  Serial.print("\tRVTtail: "); Serial.print(pw_r_vtail);  //nothing/not needed
+  Serial.print("\tFlaps: "); Serial.println(pw_flaps);
+
   //Recalculate targeting
   comm.recalculateTargettingNow(false); //(with non-new data - projects forward with time since received GPS data
 
+  //L aileron output
   if(pw_l_aileron != 0)
   {
       l_aileron_servo.writeMicroseconds(pw_l_aileron);
   }
 
-  if(pw_r_aileron != 0)
+  //R aileron output
+  if(pw_l_aileron != 0)
   {
-      r_aileron_servo.writeMicroseconds(pw_r_aileron);
+      r_aileron_servo.writeMicroseconds(pw_l_aileron);  //Signal is basically l_aileron and NOT(r_aileron) -> move eact opposite
   }
 
   if(pw_l_vtail != 0)
@@ -176,11 +187,12 @@ void mediumLoop() {
   }
 
   //TODO - may need to flip signal for left/right flaps
-  if(pw_flaps != 0)
+  //THIS ONE IS WEIRD
+  if(pw_r_aileron != 0)
   { 
       //TODO - flaps incoming signal can be thought of as switch (so program value for switch high/low, and program switch threshold)
-      l_flaps_servo.writeMicroseconds(pw_flaps);
-      r_flaps_servo.writeMicroseconds(pw_flaps);   //ie. arguement map(pw_flaps, 1000, 2000, 2000, 1000); if need to flip
+      l_flaps_servo.writeMicroseconds(pw_r_aileron);
+      r_flaps_servo.writeMicroseconds(pw_r_aileron);   //ie. arguement map(pw_flaps, 1000, 2000, 2000, 1000); if need to flip
   }
 
   if(pw_l_vtail != 0 && pw_r_vtail != 0)

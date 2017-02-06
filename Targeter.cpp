@@ -18,8 +18,9 @@ boolean Targeter::recalculate() {
   if (!haveAPosition) //If we haven't set any data, then we can't try this or it will fail
     return false;
 
-
-  TARGET_PRINTLN("Recalculating Results: \n");
+  #ifndef Targeter_Debug_Print
+    TARGET_PRINTLN("Recalculating Results: \n");
+  #endif
   return performTargetCalcsAndEvaluateResults();
 
 }
@@ -39,8 +40,10 @@ boolean Targeter::setAndCheckCurrentData(double _currentLatitude, double _curren
   // Get current coordinates (saved in currentEasting/currentNorthing)
   convertDeg2UTM(convertDecimalDegMinToDegree(currentLatitude), convertDecimalDegMinToDegree(currentLongitude), currentEasting, currentNorthing);
 
-
-  TARGET_PRINTLN("New Data Results: \n");
+  #ifndef Targeter_Debug_Print
+    TARGET_PRINTLN("New Data Results: \n");
+  #endif
+  
   return performTargetCalcsAndEvaluateResults();
 
 }
@@ -73,26 +76,36 @@ bool Targeter::performTargetCalcsAndEvaluateResults()
   
 
   /*****DEBUGGING - print results *****/
-  TARGET_PRINT("Easting = ");  TARGET_PRINT(currentEasting);
-  TARGET_PRINT("\t\tNorthing = ");  TARGET_PRINT(currentNorthing);
-  TARGET_PRINT("\t\tTarget.easting = ");  TARGET_PRINT(targetEasting);
-  TARGET_PRINT("\t\tTarget.northing = ");  TARGET_PRINTLN(targetNorthing);
+  #ifndef Targeter_Debug_Print
+    TARGET_PRINT("Easting = ");  TARGET_PRINT(currentEasting);
+    TARGET_PRINT("\t\tNorthing = ");  TARGET_PRINT(currentNorthing);
+    TARGET_PRINT("\t\tTarget.easting = ");  TARGET_PRINT(targetEasting);
+    TARGET_PRINT("\t\tTarget.northing = ");  TARGET_PRINTLN(targetNorthing);
+    
+    TARGET_PRINT("Alt (M) = ");  TARGET_PRINT(currentAltitudeM );
+    TARGET_PRINT("\t\tVel = ");  TARGET_PRINT(currentVelocityMPS);
+    TARGET_PRINT("\t\tHeading = ");  TARGET_PRINT(currentHeading);
+    TARGET_PRINT("\t\tTimestamp = ");  TARGET_PRINTLN(currentDataTimestamp);
   
-  TARGET_PRINT("Alt (M) = ");  TARGET_PRINT(currentAltitudeM );
-  TARGET_PRINT("\t\tVel = ");  TARGET_PRINT(currentVelocityMPS);
-  TARGET_PRINT("\t\tHeading = ");  TARGET_PRINT(currentHeading);
-  TARGET_PRINT("\t\tTimestamp = ");  TARGET_PRINTLN(currentDataTimestamp);
-
-  TARGET_PRINT("Lateral error = ");  TARGET_PRINTLN(lateralError);
-  TARGET_PRINT("Direct Dist to Target = "); TARGET_PRINTLN(directDistanceToTarget);
-  TARGET_PRINT("Distance to min lateral err = ");  TARGET_PRINTLN(distAlongPathToMinLateralErr);
-  TARGET_PRINT("Horizontal dist from drop, dataAge, dropDelay = "); TARGET_PRINTLN(horizDistance);
-  TARGET_PRINT("Time until drop = ");  TARGET_PRINTLN(timeTillDrop);
-  TARGET_PRINT("Dist from drop loc to target = ");  TARGET_PRINTLN(distFromEstDropPosToTarget);
-  TARGET_PRINT("Target radius = ");  TARGET_PRINTLN(TARGET_RADIUS);
-
+    TARGET_PRINT("Lateral error = ");  TARGET_PRINTLN(lateralError);
+    TARGET_PRINT("Direct Dist to Target = "); TARGET_PRINTLN(directDistanceToTarget);
+    TARGET_PRINT("Distance to min lateral err = ");  TARGET_PRINTLN(distAlongPathToMinLateralErr);
+    TARGET_PRINT("Horizontal dist from drop, dataAge, dropDelay = "); TARGET_PRINTLN(horizDistance);
+    TARGET_PRINT("Time until drop = ");  TARGET_PRINTLN(timeTillDrop);
+    TARGET_PRINT("Dist from drop loc to target = ");  TARGET_PRINTLN(distFromEstDropPosToTarget);
+    TARGET_PRINT("Target radius = ");  TARGET_PRINTLN(TARGET_RADIUS);
+  #else
+    TARGET_PRINT("DD = "); TARGET_PRINT(directDistanceToTarget);
+    TARGET_PRINT("\tT = ");  TARGET_PRINT(timeTillDrop);
+    TARGET_PRINT("\tTD = ");  TARGET_PRINTLN(distFromEstDropPosToTarget);
+  #endif
 
   /***** Evaluate Results ******/
+  //If we are within 5m, drop regardless of other conditions
+  if(distFromEstDropPosToTarget < 5)
+    return true;
+  //else...
+  
   // 1. We update every 50ms, so if much higher than that we want to wait to drop closer to center
   if (timeTillDrop > 0.2) //200 ms * 15 m/s = 3 m, not really a worry of dropping early
     return false;

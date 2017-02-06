@@ -144,7 +144,8 @@ void Communicator::recieveCommands() {
     // Drop bay (Manual Drop)
     if (incomingByte == INCOME_DROP_OPEN)
       setDropBayState(MANUAL_CMD, DROPBAY_OPEN);
-    else if (incomingByte == INCOME_DROP_CLOSE)
+    
+    if (incomingByte == INCOME_DROP_CLOSE)
       setDropBayState(MANUAL_CMD, DROPBAY_CLOSE);
 
     // Turn ON auto drop
@@ -289,26 +290,34 @@ void Communicator::recalculateTargettingNow(boolean withNewData) {
 #ifdef Targeter_Test
 
   if(withNewData) {
-
+  #ifndef Targeter_Debug_Print
     TARGET_PRINTLN("\t Targeting Test: Recalaculating Targeting with New Data (Advancing a Point) \t");
+  #endif
+  
     if (++currentTargeterDataPoint == NUM_TARGETER_DATAPTS) {      currentTargeterDataPoint = 0;   }
 
     isReadyToDrop = targeter.setAndCheckCurrentData(GPSLatitudes[currentTargeterDataPoint], GPSLongitudes[currentTargeterDataPoint], altitudes[currentTargeterDataPoint], velocities[currentTargeterDataPoint], headings[currentTargeterDataPoint], millis());
   }
   else {
-    TARGET_PRINT("Targeting Test: Projecting Data Foward");
+     #ifndef Targeter_Debug_Print
+       TARGET_PRINT("Targeting Test: Projecting Data Foward");
+      #endif
     isReadyToDrop = targeter.recalculate();
   }
 
 #else  //What we do when it's real GPS data
 
   if (withNewData) {
-    TARGET_PRINTLN("\t Real GPS: Recalaculating Targeting with New Data \t");
-    isReadyToDrop = targeter.setAndCheckCurrentData(GPS.latitude, GPS.longitude, altitudeFt, GPS.speedMPS, GPS.angle, millis());
+      #ifndef Targeter_Debug_Print
+        TARGET_PRINTLN("\t Real GPS: Recalaculating Targeting with New Data \t");
+      #endif
+    isReadyToDrop = targeter.setAndCheckCurrentData(GPS.latitude, -GPS.longitude, altitudeFt, GPS.speedMPS, GPS.angle, millis());
 
   }
   else {
-    TARGET_PRINT("Real GPS: Projecting Data Foward");
+    #ifndef Targeter_Debug_Print
+      TARGET_PRINT("Real GPS: Projecting Data Foward");
+    #endif
     isReadyToDrop = targeter.recalculate();   
   }
 
@@ -316,7 +325,9 @@ void Communicator::recalculateTargettingNow(boolean withNewData) {
 
   //Interpret result the same, regardless of if it was a testing run
   if(!isReadyToDrop)  {
-    TARGET_PRINTLN("\n NOT READY FOR DROP\n\n");        
+    #ifndef Targeter_Debug_Print
+      TARGET_PRINTLN("\n NOT READY FOR DROP\n\n");        
+    #endif
   }
   //Check if it's already open (ie. don't want to update/change altitudeAtDropFt)
   else if (dropBayServoPos == DROP_BAY_OPEN) {
@@ -343,7 +354,7 @@ void Communicator::recalculateTargettingNow(boolean withNewData) {
 //state == 0 closes drop bay. state == 1 opens drop bay.
 void Communicator::setDropBayState(int src, int state) {
   
-  if (src == 1 && autoDrop == false && state == DROPBAY_OPEN){ //AutoDrop Protection  
+  if (src == 1 && autoDrop == false){ //AutoDrop Protection  
     
       TARGET_PRINT("Autodrop is disabled, preventing drop (src = ");
       TARGET_PRINT(src);
