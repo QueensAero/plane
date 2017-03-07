@@ -202,7 +202,7 @@ void Targeter::calculateDistAlongPathToMinLateralErr() {
    Overall approximation of 0.9 correction factor
    See MATLAB script for more details
 */
-#define CORRECTION_FACTOR 0.9
+//#define CORRECTION_FACTOR 0.9
 
 void Targeter::calculateHorizDistance() {
 

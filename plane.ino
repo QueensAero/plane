@@ -141,7 +141,7 @@ void loop() {
   }
 
   // Check if commands received. This function executes quickly even if a command is received
-  comm.recieveCommands();
+  comm.recieveCommands(current_time);
 
   // Check if incoming data from GPS. If a full string is received, this function automatically parses it. Shouldn't take >1ms even when parsing required (which is 5x per second)
   comm.getSerialDataFromGPS();

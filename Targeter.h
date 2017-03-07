@@ -16,7 +16,7 @@ class Targeter {
   private:
 
     //Correct factors (these are not tuned/tested!!)
-    #define CORRECTION_FACTOR = 0.9;  //for air resistance
+    #define CORRECTION_FACTOR 0.9  //for air resistance
     #define SERVO_OPEN_DELAY 250 //ms
 
     // ------------------------------------ CURRENT POSITION ------------------------------------

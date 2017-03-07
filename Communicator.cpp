@@ -57,6 +57,7 @@ void Communicator::initialize() {
   altitudeFt = 0;
   altitudeAtDropFt = 0;
   timeAtDrop = 0;
+  bufferIndex = 0;
 
   //Attach servo, init position to closed
   dropServo.attach(DROP_PIN);
@@ -132,59 +133,102 @@ bool Communicator::sendCmdAndWaitForOK(String cmd, int timeout)
 
 // Function that is called from main program to receive incoming serial commands from ground station
 // Commands are one byte long, represented as characters for easy reading
-void Communicator::recieveCommands() {
+void Communicator::recieveCommands(unsigned long curTime) {
 
   // Look for new byte from serial buffer
-  if (XBEE_SERIAL.available() > 0) {
+  while (XBEE_SERIAL.available() > 0) {
     // New command detected, parse and execute
     byte incomingByte = XBEE_SERIAL.read();
     DEBUG_PRINT("Received a command: ");
     DEBUG_PRINT(incomingByte);
 
-    // Drop bay (Manual Drop)
-    if (incomingByte == INCOME_DROP_OPEN)
-      setDropBayState(MANUAL_CMD, DROPBAY_OPEN);
-    
-    if (incomingByte == INCOME_DROP_CLOSE)
-      setDropBayState(MANUAL_CMD, DROPBAY_CLOSE);
+    // If we are currently in the middle of receiving a new GPS target
+    if(bufferIndex > 0)
+    {
+      // Note: If you want to notify the groundstation of a failed transmission, this check should move outside of the encapsualting if-statement
+      if((curTime - transmitStartTime) > 2000) {
+        // If it has been 2 seconds since the start character and we still aren't done,
+        // then there was probably a transmit error. Just give up.
+        // This is very unlikely, but I don't want to get stuck waiting for something that isn't coming
+        // and miss meaningful messages
+        bufferIndex = 0;
+      }
+      if(bufferIndex < 9) {
+        targetLat[bufferIndex++ - 1] = incomingByte;
+      } else if(bufferIndex == 9) {
+        if(incomingByte == '%') {
+          // We're on the right track
+          bufferIndex++;
+        } else {
+          // There was a transmission error
+          // Give up on this message
+          bufferIndex = 0;
+        }
+      } else if(bufferIndex > 9 && bufferIndex < 18) {
+        targetLon[bufferIndex++ - 6];
+      } else if(bufferIndex == 18) {
+        if(incomingByte == 'e') {
+          // We succesfully received the new target
+          // Convert lat and lon to doubles
+          memcpy(&targetLatDoub, targetLat, 8);
+          memcpy(&targetLonDoub, targetLon, 8);
+          /*for(int i = 0; i < 8; i++) {
+            targetLatDoub = (targetLatDoub << 8) | targetLat[i];
+            targetLinDoub = (targetLonDoub << 8) | targetLon[i];
+          }*/
+          // Update targeter
+          // Note: Currently, it is assumed that the altitude is 0. This is wrong if the altimeter is reset at an altitude different than the target altitude
+          targeter.setTargetData(targetLatDoub, targetLonDoub, 0);
+          Serial.print("Latitude: ");
+          Serial.println(targetLatDoub);
+          Serial.print("Longitude: ");
+          Serial.println(targetLonDoub);
+        }
+        bufferIndex = 0;
+        continue; // Don't bother checking if the incomingByte matches any of the other codes - it doesn't
+      } else {
+        // Should never get here
+        bufferIndex = 0;
+      }
+        
+    } // End if(bufferIndex > 0)
 
-    // Turn ON auto drop
-    if (incomingByte == INCOME_AUTO_ON) {
+    if (incomingByte == INCOME_DROP_OPEN) {
+      // Drop bay (Manual Drop)
+      setDropBayState(MANUAL_CMD, DROPBAY_OPEN);
+    } else if (incomingByte == INCOME_DROP_CLOSE) {
+      setDropBayState(MANUAL_CMD, DROPBAY_CLOSE);
+    } else if (incomingByte == INCOME_AUTO_ON) {
+      // Turn ON auto drop
       autoDrop = true;
       sendMessage(MESSAGE_AUTO_ON);
-    }
-
-    // Turn OFF auto drop
-    if (incomingByte == INCOME_AUTO_OFF) {
+    } else if (incomingByte == INCOME_AUTO_OFF) {
+      // Turn OFF auto drop
       autoDrop = false;
       sendMessage(MESSAGE_AUTO_OFF);
-    }
-    
-    // Reset (only sensors, not drop bay??)
-    if (incomingByte == INCOME_RESET) {  //RESET FUNCTION.
+    } else if (incomingByte == INCOME_RESET) {  //RESET FUNCTION.
+      // Reset (only sensors, not drop bay??)
       sendData();  // Flush current data packets
       reset = true;
-    }
-
-    //Restart
-    if (incomingByte == INCOME_RESTART) {  //RESTART FUNCTION.
+    } else if (incomingByte == INCOME_RESTART) {  //RESTART FUNCTION.
+      // Restart
       sendData();  //Flush current data packets
       restart = true;
       setDropBayState(MANUAL_CMD, DROPBAY_CLOSE); //close drop bay
-    }
-
-    //Return Altitude at Drop
-    if (incomingByte == INCOME_DROP_ALT) {  //SEND ALTITUDE_AT_DROP
+    } else if (incomingByte == INCOME_DROP_ALT) {  //SEND ALTITUDE_AT_DROP
+      // Return Altitude at Drop
       sendMessage(MESSAGE_ALT_AT_DROP, (float)altitudeAtDropFt);
-    }
-
-    //Send Battery Voltage
-    if(incomingByte == INCOME_BATTERY_V){
+    } else if(incomingByte == INCOME_BATTERY_V){
+       // Send Battery Voltage
        sendMessage(MESSAGE_BATTERY_V, (float)analogRead(BATTERY_VOLTAGE_PIN)*ANALOG_READ_CONV);
+    } else if(incomingByte == INCOME_NEW_TARGET_START){
+      // Start of a gps target position update message
+      bufferIndex = 1;
+      transmitStartTime = curTime;
     }
 
-  }
-}
+  } // End while(XBEE_SERIAL.available() > 0) 
+} // End recieveCommands()
 
 
 // Data is sent via wireless serial link to ground station
