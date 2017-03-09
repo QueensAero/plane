@@ -145,6 +145,10 @@ void Communicator::recieveCommands(unsigned long curTime) {
     // If we are currently in the middle of receiving a new GPS target
     if(bufferIndex > 0)
     {
+      /*Serial.print(bufferIndex);
+      Serial.print(": ");
+      Serial.println((char)incomingByte);
+      */
       // Note: If you want to notify the groundstation of a failed transmission, this check should move outside of the encapsualting if-statement
       if((curTime - transmitStartTime) > 2000) {
         // If it has been 2 seconds since the start character and we still aren't done,
@@ -155,37 +159,45 @@ void Communicator::recieveCommands(unsigned long curTime) {
       }
       if(bufferIndex < 9) {
         targetLat[bufferIndex++ - 1] = incomingByte;
+        continue; // Don't check if current byte matches a command - it might - but that's just a coincidence
       } else if(bufferIndex == 9) {
         if(incomingByte == '%') {
           // We're on the right track
           bufferIndex++;
+          continue; // Don't check if current byte matches a command
         } else {
           // There was a transmission error
           // Give up on this message
           bufferIndex = 0;
         }
       } else if(bufferIndex > 9 && bufferIndex < 18) {
-        targetLon[bufferIndex++ - 6];
+        targetLon[bufferIndex++ - 10] = incomingByte;
       } else if(bufferIndex == 18) {
         if(incomingByte == 'e') {
           // We succesfully received the new target
           // Convert lat and lon to doubles
           memcpy(&targetLatDoub, targetLat, 8);
           memcpy(&targetLonDoub, targetLon, 8);
-          /*for(int i = 0; i < 8; i++) {
-            targetLatDoub = (targetLatDoub << 8) | targetLat[i];
-            targetLinDoub = (targetLonDoub << 8) | targetLon[i];
+          /*Serial.println("Longitude Double Bytes: ");
+          for(int i = 0; i < 8; i++)
+          {
+            Serial.print(i);
+            Serial.print(": ");
+            Serial.println(((char*)&targetLonDoub)[i]);
           }*/
           // Update targeter
           // Note: Currently, it is assumed that the altitude is 0. This is wrong if the altimeter is reset at an altitude different than the target altitude
           targeter.setTargetData(targetLatDoub, targetLonDoub, 0);
-          Serial.print("Latitude: ");
+          /*Serial.print("Latitude: ");
           Serial.println(targetLatDoub);
           Serial.print("Longitude: ");
           Serial.println(targetLonDoub);
+          */
+          sendMessage('g');
+          bufferIndex = 0;
+          continue; // Don't bother checking if the incomingByte matches any of the other codes - it doesn't
         }
-        bufferIndex = 0;
-        continue; // Don't bother checking if the incomingByte matches any of the other codes - it doesn't
+        bufferIndex = 0; // Last byte didn't match - something got screwed up
       } else {
         // Should never get here
         bufferIndex = 0;

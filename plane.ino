@@ -154,12 +154,13 @@ void loop() {
 //TODO: Tail wheel demixing
 void mediumLoop() {
 
-
+/*
   Serial.print("LAil: "); Serial.print(pw_l_aileron); 
   Serial.print("\tRAil - is flaps: "); Serial.print(pw_r_aileron); //Not needed/used -> aileron are just opposite signal
   Serial.print("\tLVTail: "); Serial.print(pw_l_vtail); 
   Serial.print("\tRVTtail: "); Serial.print(pw_r_vtail);  //nothing/not needed
   Serial.print("\tFlaps: "); Serial.println(pw_flaps);
+ */
 
   //Recalculate targeting
   comm.recalculateTargettingNow(false); //(with non-new data - projects forward with time since received GPS data
