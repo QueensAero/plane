@@ -47,7 +47,8 @@
 #define LONG_LOOP_TIME 500 	  // LED blinking
 
 // Hardware declerations
-#define HEARTBEAT_LED_PIN 50
+#define HEARTBEAT_LED_PIN A11
+#define NO_FIX_LED_PIN A10
 #define STATUS_LED_PIN 13
 
 // ------------------------------------ DROP BAY ------------------------------------
