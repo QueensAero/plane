@@ -18,6 +18,8 @@
 #include <Servo.h>
 #include "Targeter.h"
 
+// System variables
+boolean noFixLedIsOn = true;
 
 Adafruit_GPS GPS;
 Targeter targeter;
@@ -144,7 +146,7 @@ void Communicator::recieveCommands() {
     // Drop bay (Manual Drop)
     if (incomingByte == INCOME_DROP_OPEN)
       setDropBayState(MANUAL_CMD, DROPBAY_OPEN);
-    
+
     if (incomingByte == INCOME_DROP_CLOSE)
       setDropBayState(MANUAL_CMD, DROPBAY_CLOSE);
 
@@ -159,7 +161,7 @@ void Communicator::recieveCommands() {
       autoDrop = false;
       sendMessage(MESSAGE_AUTO_OFF);
     }
-    
+
     // Reset (only sensors, not drop bay??)
     if (incomingByte == INCOME_RESET) {  //RESET FUNCTION.
       sendData();  // Flush current data packets
@@ -179,8 +181,8 @@ void Communicator::recieveCommands() {
     }
 
     //Send Battery Voltage
-    if(incomingByte == INCOME_BATTERY_V){
-       sendMessage(MESSAGE_BATTERY_V, (float)analogRead(BATTERY_VOLTAGE_PIN)*ANALOG_READ_CONV);
+    if (incomingByte == INCOME_BATTERY_V) {
+      sendMessage(MESSAGE_BATTERY_V, (float)analogRead(BATTERY_VOLTAGE_PIN)*ANALOG_READ_CONV);
     }
 
   }
@@ -196,18 +198,18 @@ void Communicator::recieveCommands() {
 // No other serial communication can be done in other classes!!!
 void Communicator::sendData() {
 
-/* For testing
-  long maxRand = 1000000;
-  altitudeFt = random(0,maxRand)*(150.0-0.0)/maxRand + 0.0;
-  GPS.speedMPS = random(0,maxRand)*(20.0-5.0)/maxRand  + 5.0;
-  float GPSerr = 0.1;
-  GPS.latitude = random(0,maxRand)*GPSerr/maxRand  + TARGET_LATT - GPSerr/2;  
-  GPS.longitude = random(0,maxRand)*GPSerr/maxRand + TARGET_LONG - GPSerr/2;   //NOTE - pay attend to signs, this is negative (as it should be)
-  GPS.angle = random(0,maxRand)*(360.0-0.0)/maxRand + 0.0;
-  GPS.milliseconds = random(0,1000);
-  GPS.seconds = random(0,60);  */
+  /* For testing
+    long maxRand = 1000000;
+    altitudeFt = random(0,maxRand)*(150.0-0.0)/maxRand + 0.0;
+    GPS.speedMPS = random(0,maxRand)*(20.0-5.0)/maxRand  + 5.0;
+    float GPSerr = 0.1;
+    GPS.latitude = random(0,maxRand)*GPSerr/maxRand  + TARGET_LATT - GPSerr/2;
+    GPS.longitude = random(0,maxRand)*GPSerr/maxRand + TARGET_LONG - GPSerr/2;   //NOTE - pay attend to signs, this is negative (as it should be)
+    GPS.angle = random(0,maxRand)*(360.0-0.0)/maxRand + 0.0;
+    GPS.milliseconds = random(0,1000);
+    GPS.seconds = random(0,60);  */
 
- 
+
   //Send to XBee
   XBEE_SERIAL.print("*");
   XBEE_SERIAL.print(DATA_PACKET);
@@ -220,7 +222,7 @@ void Communicator::sendData() {
   sendUint8_t(GPS.seconds);
   XBEE_SERIAL.print("ee");
 
-  
+
   //If Debugging, send to Serial Monitor (Note this doesn't use the bytewise representation of numbers)
   DEBUG_PRINT("Message:");
   DEBUG_PRINT("Alt: ");
@@ -247,10 +249,10 @@ void Communicator::sendMessage(char message) {
 
 void Communicator::sendMessage(char message, float value) // Messages with associated floats
 {
-      XBEE_SERIAL.print("*");
-      XBEE_SERIAL.print(message);
-      sendFloat((float)value);
-      XBEE_SERIAL.print("ee");  
+  XBEE_SERIAL.print("*");
+  XBEE_SERIAL.print(message);
+  sendFloat((float)value);
+  XBEE_SERIAL.print("ee");
 }
 
 void Communicator::sendUint8_t(uint8_t toSend) {
@@ -286,59 +288,61 @@ void Communicator::recalculateTargettingNow(boolean withNewData) {
 
   bool isReadyToDrop = false;
 
-//If testing the targeting, use the simulated data
+  //If testing the targeting, use the simulated data
 #ifdef Targeter_Test
 
-  if(withNewData) {
-  #ifndef Targeter_Debug_Print
+  if (withNewData) {
+#ifndef Targeter_Debug_Print
     TARGET_PRINTLN("\t Targeting Test: Recalaculating Targeting with New Data (Advancing a Point) \t");
-  #endif
-  
-    if (++currentTargeterDataPoint == NUM_TARGETER_DATAPTS) {      currentTargeterDataPoint = 0;   }
+#endif
+
+    if (++currentTargeterDataPoint == NUM_TARGETER_DATAPTS) {
+      currentTargeterDataPoint = 0;
+    }
 
     isReadyToDrop = targeter.setAndCheckCurrentData(GPSLatitudes[currentTargeterDataPoint], GPSLongitudes[currentTargeterDataPoint], altitudes[currentTargeterDataPoint], velocities[currentTargeterDataPoint], headings[currentTargeterDataPoint], millis());
   }
   else {
-     #ifndef Targeter_Debug_Print
-       TARGET_PRINT("Targeting Test: Projecting Data Foward");
-      #endif
+#ifndef Targeter_Debug_Print
+    TARGET_PRINT("Targeting Test: Projecting Data Foward");
+#endif
     isReadyToDrop = targeter.recalculate();
   }
 
 #else  //What we do when it's real GPS data
 
   if (withNewData) {
-      #ifndef Targeter_Debug_Print
-        TARGET_PRINTLN("\t Real GPS: Recalaculating Targeting with New Data \t");
-      #endif
+#ifndef Targeter_Debug_Print
+    TARGET_PRINTLN("\t Real GPS: Recalaculating Targeting with New Data \t");
+#endif
     isReadyToDrop = targeter.setAndCheckCurrentData(GPS.latitude, -GPS.longitude, altitudeFt, GPS.speedMPS, GPS.angle, millis());
 
   }
   else {
-    #ifndef Targeter_Debug_Print
-      TARGET_PRINT("Real GPS: Projecting Data Foward");
-    #endif
-    isReadyToDrop = targeter.recalculate();   
+#ifndef Targeter_Debug_Print
+    TARGET_PRINT("Real GPS: Projecting Data Foward");
+#endif
+    isReadyToDrop = targeter.recalculate();
   }
 
-#endif 
+#endif
 
   //Interpret result the same, regardless of if it was a testing run
-  if(!isReadyToDrop)  {
-    #ifndef Targeter_Debug_Print
-      TARGET_PRINTLN("\n NOT READY FOR DROP\n\n");        
-    #endif
+  if (!isReadyToDrop)  {
+#ifndef Targeter_Debug_Print
+    TARGET_PRINTLN("\n NOT READY FOR DROP\n\n");
+#endif
   }
   //Check if it's already open (ie. don't want to update/change altitudeAtDropFt)
   else if (dropBayServoPos == DROP_BAY_OPEN) {
-      TARGET_PRINTLN("Dropbay already open (otherwise wanted to drop)");   
+    TARGET_PRINTLN("Dropbay already open (otherwise wanted to drop)");
   }
   //Check if autoDrop is enabled
   else if (!autoDrop) {
-      TARGET_PRINTLN("\n\n AUTODROP DISABLED PREVENTING A DROP\n\n\n\n");    
-  //If reach here, targeter wants a drop, dropbay is closed, and autodrop is enabled. Therefore, we open the drop bay!
+    TARGET_PRINTLN("\n\n AUTODROP DISABLED PREVENTING A DROP\n\n\n\n");
+    //If reach here, targeter wants a drop, dropbay is closed, and autodrop is enabled. Therefore, we open the drop bay!
   }
-  else{
+  else {
     setDropBayState(AUTOMATIC_CMD, DROPBAY_OPEN);
     TARGET_PRINTLN("\n\n ******************************* AUTOMATIC DROP *****************\n\n\n\n");
   }
@@ -353,26 +357,26 @@ void Communicator::recalculateTargettingNow(boolean withNewData) {
 //src == 1 corresponds to the automatic drop function.
 //state == 0 closes drop bay. state == 1 opens drop bay.
 void Communicator::setDropBayState(int src, int state) {
-  
-  if (src == 1 && autoDrop == false){ //AutoDrop Protection  
-    
-      TARGET_PRINT("Autodrop is disabled, preventing drop (src = ");
-      TARGET_PRINT(src);
-      TARGET_PRINT("   autoDrop = ");
-      TARGET_PRINT(autoDrop);
-      TARGET_PRINTLN(")");
-       
-      return;
+
+  if (src == 1 && autoDrop == false) { //AutoDrop Protection
+
+    TARGET_PRINT("Autodrop is disabled, preventing drop (src = ");
+    TARGET_PRINT(src);
+    TARGET_PRINT("   autoDrop = ");
+    TARGET_PRINT(autoDrop);
+    TARGET_PRINTLN(")");
+
+    return;
   }
 
   //Open/Close Drop Bay
   if (state == DROPBAY_CLOSE)  {
-      
-      TARGET_PRINT("Closed bay door (src = ");
-      TARGET_PRINT(src);
-      TARGET_PRINT("   autoDrop = ");
-      TARGET_PRINT(autoDrop);
-      TARGET_PRINTLN(")");
+
+    TARGET_PRINT("Closed bay door (src = ");
+    TARGET_PRINT(src);
+    TARGET_PRINT("   autoDrop = ");
+    TARGET_PRINT(autoDrop);
+    TARGET_PRINTLN(")");
 
     digitalWrite(STATUS_LED_PIN, LOW);
     dropBayServoPos = DROP_BAY_CLOSED;
@@ -444,7 +448,7 @@ void Communicator::setupGPS() {
 void Communicator::getSerialDataFromGPS() {
 
   while (GPS_SERIAL.available()) {
-     
+
     nmeaBuf[nmeaBufInd] = GPS_SERIAL.read();
 
     if (nmeaBuf[nmeaBufInd++] == '\n') { // Increment index after checking if current character signifies the end of a string
@@ -452,11 +456,16 @@ void Communicator::getSerialDataFromGPS() {
       newParsedData = GPS.parse(nmeaBuf);   // This parses the string, and updates the values of GPS.lattitude, GPS.longitude etc.
       nmeaBufInd = 0;  // Regardless of it parsing sucessful, we want to reset position back to zero
 
-      #ifndef Targeter_Test  //Otherwise may confuse real data and simulated data
-        recalculateTargettingNow(true);
-        //String str(nmeaBuf);
-        //DEBUG_PRINTLN(str);
-      #endif
+      if (noFixLedIsOn == GPS.fix) {
+        digitalWrite(NO_FIX_LED_PIN, !GPS.fix);
+        noFixLedIsOn = !GPS.fix;
+      }
+
+#ifndef Targeter_Test  //Otherwise may confuse real data and simulated data
+      recalculateTargettingNow(true);
+      //String str(nmeaBuf);
+      //DEBUG_PRINTLN(str);
+#endif
 
     }
 

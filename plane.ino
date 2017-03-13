@@ -17,6 +17,7 @@ double base_pitch, base_roll;
 // Altitude
 double altitudeFt;
 boolean didGetZeroAltitudeLevel = false;
+//KalmanFilter altitudeFtFilter = new KalmanFilter();
 
 // System variables
 byte blinkState;
@@ -102,6 +103,9 @@ void setup() {
   pinMode(HEARTBEAT_LED_PIN, OUTPUT);
   digitalWrite(HEARTBEAT_LED_PIN, LOW);
 
+  pinMode(NO_FIX_LED_PIN, OUTPUT);
+  digitalWrite(NO_FIX_LED_PIN, HIGH);
+
   // Start system time
   prev_medium_time = millis();
   prev_slow_time = prev_medium_time;
@@ -154,13 +158,14 @@ void loop() {
 //TODO: Tail wheel demixing
 void mediumLoop() {
 
-
+  /*
   Serial.print("LAil: "); Serial.print(pw_l_aileron); 
   Serial.print("\tRAil - is flaps: "); Serial.print(pw_r_aileron); //Not needed/used -> aileron are just opposite signal
   Serial.print("\tLVTail: "); Serial.print(pw_l_vtail); 
   Serial.print("\tRVTtail: "); Serial.print(pw_r_vtail);  //nothing/not needed
   Serial.print("\tFlaps: "); Serial.println(pw_flaps);
-
+  */
+  
   //Recalculate targeting
   comm.recalculateTargettingNow(false); //(with non-new data - projects forward with time since received GPS data
 
@@ -232,10 +237,13 @@ void slowLoop() {
     if (!didGetZeroAltitudeLevel) {
       didGetZeroAltitudeLevel = true;
       altimeter.zero();
-      altitudeFt = altimeter.getAltitudeFt(false);  //now get a correctly zerod altitude
+      altitudeFt = 0;
+      //altitudeFt = altimeter.getAltitudeFt(false);  //now get a correctly zerod altitude
     }
     else {
-      altitudeFt = altitudeReadInFt;
+      //altitudeFt = altitudeReadInFt;
+      altitudeFt = updateAltitudeFtFilter(altitudeReadInFt); //now get a correctly zerod altitude and pass it through the filter
+      Serial.println(altitudeFt);
     }
 
   }
