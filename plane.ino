@@ -55,7 +55,7 @@ void setup() {
   TARGET_BEGIN(DEBUG_SERIAL_BAUD); //if either defined we start it (note it may restart if both defined)
 
   Serial.begin(115200);
-  Serial.println("starting");
+  //Serial.println("starting");
 
   // Do this first so servos are hopefully good regardless if below fails/times out/gets 'stuck'
   initializeServos();
@@ -245,7 +245,7 @@ void slowLoop() {
     else {
       //altitudeFt = altitudeReadInFt;
       altitudeFt = updateAltitudeFtFilter(altitudeReadInFt); //now get a correctly zerod altitude and pass it through the filter
-      Serial.println(altitudeFt);
+      //Serial.println(altitudeFt);
     }
 
   }
@@ -285,8 +285,6 @@ void longLoop() {
   blinkState = !blinkState;
   digitalWrite(HEARTBEAT_LED_PIN, blinkState);
 }
-
-
 
 // Initialize servo locations
 void initializeServos() {

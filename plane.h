@@ -60,10 +60,10 @@ const int closeDropBayTimeout = 10000;
 // Format: dd° mm.mmmm'
 #define TARGET_LATT 4413.724
 #define TARGET_LONG -7629.492
-#define TARGET_ALTITUDE_M 0
+#define TARGET_ALTITUDE_M 0 // feet
 // 4413.682, -77629.518 = Passage between ILC and Walter Light Hall
 #define TARGET_RADIUS 20 //meters
-
+#define MINIMUM_DROP_ALTITUDE 100 // feet
 
 // -------------------------------------------- DEBUG --------------------------------------------
 

@@ -371,7 +371,7 @@ void Communicator::recalculateTargettingNow(boolean withNewData) {
 #ifndef Targeter_Debug_Print
     TARGET_PRINTLN("\t Real GPS: Recalaculating Targeting with New Data \t");
 #endif
-    isReadyToDrop = targeter.setAndCheckCurrentData(GPS.latitude, -GPS.longitude, altitudeFt, GPS.speedMPS, GPS.angle, millis());
+    isReadyToDrop = targeter.setAndCheckCurrentData(GPS.latitude, -GPS.longitude, altitudeFt, GPS.speedMPS, GPS.angle, millis(), GPS.HDOP);
 
   }
   else {
