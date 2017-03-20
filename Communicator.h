@@ -39,8 +39,8 @@
 
 //Drop Bay Details
 #define DROP_PIN 10
-#define DROP_BAY_CLOSED 1100
-#define DROP_BAY_OPEN 1900
+#define DROP_BAY_CLOSED 1500
+#define DROP_BAY_OPEN 2100
 #define DROPBAY_OPEN 1
 #define DROPBAY_CLOSE 0
 #define AUTOMATIC_CMD 1

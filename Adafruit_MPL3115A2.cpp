@@ -52,11 +52,6 @@ boolean Adafruit_MPL3115A2::begin() {
 
   DueWire.begin();
   uint8_t whoami = read8(MPL3115A2_WHOAMI);
-  //Serial.print("whoami: ");
-  //Serial.println(whoami, HEX);
-
-  //SerialUSB.print("whoami: ");
-  //SerialUSB.println(whoami, HEX);
 
   if (whoami != 0xC4) {
     return false;
@@ -213,7 +208,7 @@ uint8_t Adafruit_MPL3115A2::read8(uint8_t a) {
     DueWire.beginTransmission(MPL3115A2_ADDRESS); // start transmission to device
     DueWire.write(a); // sends register address to read from
 
-    /*
+   
     SerialUSB.print(F("Connection: "));
     SerialUSB.println(DueWire.endTransmission(false)); // end transmission
 
@@ -223,10 +218,6 @@ uint8_t Adafruit_MPL3115A2::read8(uint8_t a) {
   */
 
   uint8_t response = DueWire.read(); // receive DATA
-  //SerialUSB.print("Response: ");
-  //SerialUSB.println(response);
-
-  //SerialUSB.println(F("----------------------------------------------"));
 
   return response;
 

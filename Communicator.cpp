@@ -9,7 +9,7 @@
 //TODO
 //Code to receive a command to update target location based on ground station message (is this useful??)
 //Code for commands to enable/disable in flight mode  (ie. disable pushbuttons once takeoff)
-//Code to program flaps to 'brake' mode (Ask mech if useful)
+//Code to program flaps to 'brake' mode (Ask mech if useful??)
 
 
 
@@ -400,6 +400,7 @@ void Communicator::setDropBayState(int src, int state) {
 // 10 seconds has passed since it was opened. If so, closes it.
 void Communicator::checkToCloseDropBay() {
 
+/* TEMP TODO DISABLED
   if (dropBayServoPos == DROP_BAY_OPEN) {
 
     unsigned long currentMillis = millis();
@@ -410,9 +411,10 @@ void Communicator::checkToCloseDropBay() {
       TARGET_PRINT((currentMillis - timeAtDrop));
       TARGET_PRINTLN(")");
 
-      setDropBayState(AUTOMATIC_CMD, DROPBAY_CLOSE);
+      //TODO - RE-ENABLE THIS
+      //setDropBayState(AUTOMATIC_CMD, DROPBAY_CLOSE);
     }
-  }
+  }*/
 }
 
 

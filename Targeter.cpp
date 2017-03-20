@@ -2,6 +2,8 @@
 #include "Arduino.h"
 #include "plane.h"
 
+//TODO - for autodropping conditions, have altitude checked (make sure at 100 ft)
+
 Targeter::Targeter() {
 
   //initialize target information (UTM coordinates), based on constants defined in plane.h
@@ -114,8 +116,7 @@ bool Targeter::performTargetCalcsAndEvaluateResults()
   if (distFromEstDropPosToTarget > TARGET_RADIUS)
     return false;
 
-  // 3. There was thought to add details about if we are heading away from target (ie. drop asap or something?)
-  // However I believe that is captured above be having the 'timeToDrop' test search for greater than (and no less than condition)
+  // 3. Altitude???
 
   // We are now close enough to be in rings, and if under 0.2 we want to drop
   return true; 
@@ -218,23 +219,14 @@ void Targeter::calculateHorizDistance() {
 
   // Calculate horizontal distance that payload will travel in this time:
   double distanceDuringFall = currentVelocityMPS * fallTime * CORRECTION_FACTOR;
-  double distanceFromDataAge = currentVelocityMPS*(millis() - currentDataTimestamp)/1000;
-  double distanceFromServoOpenDelay = currentVelocityMPS*SERVO_OPEN_DELAY/1000;
+  double distanceFromDataAge = currentVelocityMPS*(millis() - currentDataTimestamp)/1000.0;
+  double distanceFromServoOpenDelay = currentVelocityMPS*SERVO_OPEN_DELAY/1000.0;
   horizDistance = distanceDuringFall  + distanceFromDataAge  + distanceFromServoOpenDelay;
 }
 
 
 /*
-   Step 5
-   Calculates time until optimal drop location.
-*/
-void Targeter::calculateTimeTillDrop() {
-  timeTillDrop = (distAlongPathToMinLateralErr - horizDistance) / currentVelocityMPS;
-}
-
-
-/*
-  Step 6 
+  Step 5
   Calculate where we end up in relation to target 
  */
  
@@ -248,6 +240,32 @@ void Targeter::calculateTimeTillDrop() {
 
 }
 
+/*
+   Step 6
+   Calculates time until optimal drop location.
+*/
+void Targeter::calculateTimeTillDrop() {
+
+  
+  //Special Case: Plane is 'before' target, and est drop position is 'after' target.
+  //Test: If drop easting and current easting are on opposite sides of the target easting (and same for nothing) 
+  //This is the first if (which is used to prevent this scenario from triggering 'Moving away from target'
+    if(   estDropEasting > targetEasting && currentEasting < targetEasting      ||    estDropEasting < targetEasting && currentEasting > targetEasting  //Compare easting
+      ||  estDropNorthing > targetNorthing && currentNorthing < targetNorthing  ||    estDropNorthing < targetNorthing && currentNorthing > targetNorthing) //Compare northing
+    {
+      //This actually works properly. distAlongPathToMinLateralErr is positive, and horizontal distance should be subtracted
+      timeTillDrop = (distAlongPathToMinLateralErr - horizDistance) / currentVelocityMPS;
+    }
+    //Moving away from target
+    else if(distFromEstDropPosToTarget > directDistanceToTarget)
+    {
+        timeTillDrop = (-distAlongPathToMinLateralErr - horizDistance) / currentVelocityMPS;   //now distAlongPathToMinLateralErr is a negative
+    }
+    else
+    {
+        timeTillDrop = (distAlongPathToMinLateralErr - horizDistance) / currentVelocityMPS;
+    }
+}
 
 
 

@@ -59,7 +59,6 @@ boolean Adafruit_GPS::parse(char *nmea) {
     }
 
     if (sum != 0) { // Bad checksum
-      //SerialUSB.println("Bad checksum");
       return false;
     }
   }
@@ -144,15 +143,13 @@ boolean Adafruit_GPS::parse(char *nmea) {
       minutes = 50 * atol(degreebuff) / 3;
       //longitude_fixed = degree + minutes;
       longitude = degree / 100000 + minutes * 0.000006F;
-      //longitudeDegrees = (longitude-100*int(longitude/100))/60.0;
-      //longitudeDegrees += int(longitude/100);
     }
 
     p = strchr(p, ',') + 1;
     if (',' != *p) {
       if (p[0] == 'W') {
         lon = 'W';
-        longitudeDegrees *= -1.0;
+        //longitudeDegrees *= -1.0;
       }
       else if (p[0] == 'E') {
         lon = 'E';

@@ -57,8 +57,8 @@ const int closeDropBayTimeout = 10000;
 // ------------------------------------ TARGETING ------------------------------------
 
 // Format: dd° mm.mmmm'
-#define TARGET_LATT 4413.724
-#define TARGET_LONG -7629.492
+#define TARGET_LATT 4413.5906      //ILC Parking lot4413.724
+#define TARGET_LONG -7629.3796             //-7629.492
 #define TARGET_ALTITUDE_M 0
 // 4413.682, -77629.518 = Passage between ILC and Walter Light Hall
 #define TARGET_RADIUS 20 //meters

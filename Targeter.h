@@ -65,13 +65,14 @@ class Targeter {
     double horizDistance;
 
     //Step 5:
-    void calculateTimeTillDrop();   //How long until we should drop
-    double timeTillDrop;
-
-    //Step 6:
     void calculateDistFromEstDropPosToTarget();  //distance from where we are estimated to drop (currently) to the target. MUST be <ringRadius if we want to drop 
     double distFromEstDropPosToTarget;
                                 
+    //Step 6:
+    void calculateTimeTillDrop();   //How long until we should drop
+    double timeTillDrop;
+
+
 
     // ------------------------------------ CONVERSIONS ------------------------------------
     

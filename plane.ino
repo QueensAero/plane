@@ -2,12 +2,15 @@
 
 //http://students.sae.org/cds/aerodesign/rules/2015_aero_rules.pdf
 
+//TODO - GPS 'Fix' status LED
+//Pushbutton de-bouncing
+
 #include "plane.h" //all definitions
 
 // #Includes
 #include "Servo.h"
 
-// Hardware #Includes
+//Hardware #Includes
 #include "Communicator.h"
 #include "Adafruit_MPL3115A2.h"
 
@@ -25,7 +28,7 @@ byte blinkState;
 Servo wheel_servo, l_aileron_servo, r_aileron_servo, l_Vtail_servo, r_Vtail_servo, l_flaps_servo, r_flaps_servo;
 
 volatile int pw_l_vtail= 0, pw_r_vtail= 0, pw_l_aileron= 0, pw_r_aileron= 0, pw_flaps= 0;
-volatile unsigned long pwm_l_vtail_start= 0, pwm_r_vtail_start= 0, pwm_l_aileron_start= 0, pwm_r_aileron_start= 0, pwm_flaps_start= 0;
+volatile unsigned long pwm_l_vtail_start = 0, pwm_r_vtail_start = 0, pwm_l_aileron_start = 0, pwm_r_aileron_start = 0, pwm_flaps_start = 0;
 volatile unsigned long pwm_l_vtail_end = 0, pwm_r_vtail_end = 0, pwm_l_aileron_end = 0, 
                        pwm_r_aileron_end = 0, pwm_flaps_end = 0;
 
@@ -86,7 +89,6 @@ void setup() {
 
   // Start up serial communicator
   delay(3000);  // Give the XBee some time to start - SUPPOSEDLY IT CAN CAUSE ERRORS IF SENT DATA BEFORE XBEE READY
-  SerialUSB.begin(115200);
 
   comm.initialize();
   comm.sendMessage(MESSAGE_START);
@@ -159,7 +161,8 @@ void mediumLoop() {
   Serial.print("\tRAil - is flaps: "); Serial.print(pw_r_aileron); //Not needed/used -> aileron are just opposite signal
   Serial.print("\tLVTail: "); Serial.print(pw_l_vtail); 
   Serial.print("\tRVTtail: "); Serial.print(pw_r_vtail);  //nothing/not needed
-  Serial.print("\tFlaps: "); Serial.println(pw_flaps);
+  Serial.print("\tFlaps: "); Serial.print(pw_flaps);
+  Serial.print("\tTW: "); Serial.println(tail_wheel_demixing(pw_l_vtail, pw_r_vtail));
 
   //Recalculate targeting
   comm.recalculateTargettingNow(false); //(with non-new data - projects forward with time since received GPS data
@@ -199,20 +202,6 @@ void mediumLoop() {
   {
     wheel_servo.writeMicroseconds(tail_wheel_demixing(pw_l_vtail, pw_r_vtail));    
   }
-
-  /*
-    SerialUSB.print(tail_wheel_demixing(2,3));
-    SerialUSB.print('\t');
-    SerialUSB.print(pwm_high_time[0]);
-    SerialUSB.print('\t');
-    SerialUSB.print(pwm_high_time[1]);
-    SerialUSB.print('\t');
-    SerialUSB.print(pwm_high_time[2]);
-    SerialUSB.print('\t');
-    SerialUSB.print(pwm_high_time[3]);
-    SerialUSB.println('\t');
-    //SerialUSB.print(pwm_high_time[4]);
-    //SerialUSB.println('\t');  */
 
 }
 
@@ -342,7 +331,7 @@ void resetDAS() {
 }
 
 
-
+//TODO - once plane servo arrangement is known, do this
 int tail_wheel_demixing(int leftSignal, int rightSignal) {
 
   leftSignal -= LEFT_SIGNAL_OFFSET; // Currently defined as 0 offset. may be subject to change
@@ -355,9 +344,6 @@ int tail_wheel_demixing(int leftSignal, int rightSignal) {
   if (FLIP_RIGHT_SIGNAL) {
     rightSignal = map(rightSignal, 1000, 2000, 2000, 1000);
   }
-
-  // Use following code to make sure servo is straight. Should obtain 1500 for both left and right signals at rest.
-  //SerialUSB.print(leftSignal);   SerialUSB.print(" ");  SerialUSB.println(rightSignal);
 
   return constrain(map((leftSignal + rightSignal) / 2, 1000, 2000, 2000, 1000), 1000, 2000); //average left and right values, flip them, then constrain to between 1000-2000
 
@@ -486,7 +472,10 @@ void isr_rising_flaps()
     attachInterrupt(FLAPS_IN, isr_falling_flaps, FALLING);
   }
 
-   DEBUG_PRINTLN("FLAPS RISING ISR");   
+   DEBUG_PRINTLN("FLAPS RISING ISR"); 
+
+   Serial.println("FLAPS RISING!!! \n\n\n\n");
+   
   
 }
 
@@ -588,4 +577,7 @@ void isr_falling_flaps()
   attachInterrupt(FLAPS_IN, isr_rising_flaps, RISING);
 
    DEBUG_PRINTLN("FLAPS FALLING ISR");   
+
+      Serial.println("FLAPS FALLING!!! \n\n\n\n");
+
 }
