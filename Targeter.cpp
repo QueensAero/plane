@@ -26,7 +26,7 @@ boolean Targeter::recalculate() {
 }
 
 //Update the position with new data
-boolean Targeter::setAndCheckCurrentData(double _currentLatitude, double _currentLongitude, double _currentAltitudeFt, double _currentVelocityMPS, double _currentHeading, double _currentDataTimestamp, double _currentHDOP) {
+boolean Targeter::setAndCheckCurrentData(double _currentLatitude, double _currentLongitude, double _currentAltitudeFt, double _currentVelocityMPS, double _currentHeading, double _currentDataTimestamp, boolean _hdopOk) {
 
   haveAPosition = true;
 
@@ -36,7 +36,7 @@ boolean Targeter::setAndCheckCurrentData(double _currentLatitude, double _curren
   currentVelocityMPS = _currentVelocityMPS;
   currentHeading = _currentHeading;
   currentDataTimestamp = _currentDataTimestamp;
-  currentHDOP = _currentHDOP; 
+  HDOP_OK = _hdopOk; 
 
   // Get current coordinates (saved in currentEasting/currentNorthing)
   convertDeg2UTM(convertDecimalDegMinToDegree(currentLatitude), convertDecimalDegMinToDegree(currentLongitude), currentEasting, currentNorthing);
@@ -104,9 +104,13 @@ bool Targeter::performTargetCalcsAndEvaluateResults()
   /***** Evaluate Results ******/
 
   //If altitude is below 100ft, do not drop regardless of other conditions
-  if(currentAltitudeM < MINIMUM_DROP_ALTITUDE)
+  if(currentAltitudeM < MINIMUM_DROP_ALTITUDE_M)
     return false;
   //else...
+  
+  // We need to have sufficient accuracy to drop
+  if (!HDOP_OK)
+	  return false;
   
   //If we are within 5m, drop regardless of other conditions
   if(distFromEstDropPosToTarget < 5)
@@ -120,9 +124,6 @@ bool Targeter::performTargetCalcsAndEvaluateResults()
   // 2. We NEED be in the rings at the drop point
   if (distFromEstDropPosToTarget > TARGET_RADIUS)
     return false;
-
-  // 3. There was thought to add details about if we are heading away from target (ie. drop asap or something?)
-  // However I believe that is captured above be having the 'timeToDrop' test search for greater than (and no less than condition)
 
   // We are now close enough to be in rings, and if under 0.2 we want to drop
   return true; 

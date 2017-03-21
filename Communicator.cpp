@@ -274,6 +274,8 @@ void Communicator::sendData() {
   sendFloat(GPS.latitude);
   sendFloat(GPS.longitude);
   sendFloat(GPS.angle);
+  //sendFloat(GPS.HDOP);	//Waiting for update to ground-station code
+  //sendFloat(GPS.HDOP_Time);		//Waiting for update to ground station code
   sendUint16_t(GPS.milliseconds);
   sendUint8_t(GPS.seconds);
   XBEE_SERIAL.print("ee");
