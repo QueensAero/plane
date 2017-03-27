@@ -29,8 +29,8 @@
 #define SET_NMEA_UPDATE_RATE_10HZ "$PMTK220,100*2F"  //this may or may not also do the fix rate
 #define SET_NMEA_UPDATE_RATE_5HZ "$PMTK220,200*2C"
 #define SET_FIX_RATE_5HZ "$PMTK300,200,0,0,0,0*2F"    //this may or may not be only for older models
-#define ENABLE_SBAB_SATELLITES "$PMTK313,1*2E"    //unsure if this is default behaviour
-#define ENABLE_USING_WAAS_WITH_SBSB_SATS "$PMTK301,2*2E"  //call this after above
+#define ENABLE_SBAS_SATELLITES "$PMTK313,1*2E"    //unsure if this is default behaviour
+#define ENABLE_USING_WAAS_WITH_SBAS_SATS "$PMTK301,2*2E"  //call this after above
 #define SET_ONLY_GPRMC "$PMTK314,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*29"
 #define RESET_ALL_SETTINGS "$PMTK104*37"
 
@@ -70,8 +70,7 @@
 #define LOCUS_OVERLAP 0
 #define LOCUS_FULLSTOP 1
 
-#define PMTK_ENABLE_SBAS "$PMTK313,1*2E"
-#define PMTK_ENABLE_WAAS "$PMTK301,2*2E"
+
 
 // standby command & boot successful message
 #define PMTK_STANDBY "$PMTK161,0*28"

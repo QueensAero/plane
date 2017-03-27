@@ -28,7 +28,7 @@ boolean Targeter::recalculate() {
 }
 
 //Update the position with new data
-boolean Targeter::setAndCheckCurrentData(double _currentLatitude, double _currentLongitude, double _currentAltitudeFt, double _currentVelocityMPS, double _currentHeading, double _currentDataTimestamp) {
+boolean Targeter::setAndCheckCurrentData(double _currentLatitude, double _currentLongitude, double _currentAltitudeFt, double _currentVelocityMPS, double _currentHeading, double _currentDataTimestamp, double _currentHDOP) {
 
   haveAPosition = true;
 
@@ -38,6 +38,7 @@ boolean Targeter::setAndCheckCurrentData(double _currentLatitude, double _curren
   currentVelocityMPS = _currentVelocityMPS;
   currentHeading = _currentHeading;
   currentDataTimestamp = _currentDataTimestamp;
+  currentHDOP = _currentHDOP; 
 
   // Get current coordinates (saved in currentEasting/currentNorthing)
   convertDeg2UTM(convertDecimalDegMinToDegree(currentLatitude), convertDecimalDegMinToDegree(currentLongitude), currentEasting, currentNorthing);
@@ -103,6 +104,12 @@ bool Targeter::performTargetCalcsAndEvaluateResults()
   #endif
 
   /***** Evaluate Results ******/
+
+  //If altitude is below 100ft, do not drop regardless of other conditions
+  if(currentAltitudeM < MINIMUM_DROP_ALTITUDE)
+    return false;
+  //else...
+  
   //If we are within 5m, drop regardless of other conditions
   if(distFromEstDropPosToTarget < 5)
     return true;
@@ -203,7 +210,7 @@ void Targeter::calculateDistAlongPathToMinLateralErr() {
    Overall approximation of 0.9 correction factor
    See MATLAB script for more details
 */
-#define CORRECTION_FACTOR 0.9
+//#define CORRECTION_FACTOR 0.9
 
 void Targeter::calculateHorizDistance() {
 

@@ -20,6 +20,7 @@ double base_pitch, base_roll;
 // Altitude
 double altitudeFt;
 boolean didGetZeroAltitudeLevel = false;
+//KalmanFilter altitudeFtFilter = new KalmanFilter();
 
 // System variables
 byte blinkState;
@@ -57,7 +58,7 @@ void setup() {
   TARGET_BEGIN(DEBUG_SERIAL_BAUD); //if either defined we start it (note it may restart if both defined)
 
   Serial.begin(115200);
-  Serial.println("starting");
+  //Serial.println("starting");
 
   // Do this first so servos are hopefully good regardless if below fails/times out/gets 'stuck'
   initializeServos();
@@ -104,6 +105,9 @@ void setup() {
   pinMode(HEARTBEAT_LED_PIN, OUTPUT);
   digitalWrite(HEARTBEAT_LED_PIN, LOW);
 
+  pinMode(NO_FIX_LED_PIN, OUTPUT);
+  digitalWrite(NO_FIX_LED_PIN, HIGH);
+
   // Start system time
   prev_medium_time = millis();
   prev_slow_time = prev_medium_time;
@@ -143,7 +147,7 @@ void loop() {
   }
 
   // Check if commands received. This function executes quickly even if a command is received
-  comm.recieveCommands();
+  comm.recieveCommands(current_time);
 
   // Check if incoming data from GPS. If a full string is received, this function automatically parses it. Shouldn't take >1ms even when parsing required (which is 5x per second)
   comm.getSerialDataFromGPS();
@@ -157,12 +161,12 @@ void loop() {
 void mediumLoop() {
 
 
+/*
   Serial.print("LAil: "); Serial.print(pw_l_aileron); 
   Serial.print("\tRAil - is flaps: "); Serial.print(pw_r_aileron); //Not needed/used -> aileron are just opposite signal
   Serial.print("\tLVTail: "); Serial.print(pw_l_vtail); 
   Serial.print("\tRVTtail: "); Serial.print(pw_r_vtail);  //nothing/not needed
-  Serial.print("\tFlaps: "); Serial.print(pw_flaps);
-  Serial.print("\tTW: "); Serial.println(tail_wheel_demixing(pw_l_vtail, pw_r_vtail));
+*/
 
   //Recalculate targeting
   comm.recalculateTargettingNow(false); //(with non-new data - projects forward with time since received GPS data
@@ -221,10 +225,13 @@ void slowLoop() {
     if (!didGetZeroAltitudeLevel) {
       didGetZeroAltitudeLevel = true;
       altimeter.zero();
-      altitudeFt = altimeter.getAltitudeFt(false);  //now get a correctly zerod altitude
+      altitudeFt = 0;
+      //altitudeFt = altimeter.getAltitudeFt(false);  //now get a correctly zerod altitude
     }
     else {
-      altitudeFt = altitudeReadInFt;
+      //altitudeFt = altitudeReadInFt;
+      altitudeFt = updateAltitudeFtFilter(altitudeReadInFt); //now get a correctly zerod altitude and pass it through the filter
+      //Serial.println(altitudeFt);
     }
 
   }
@@ -264,8 +271,6 @@ void longLoop() {
   blinkState = !blinkState;
   digitalWrite(HEARTBEAT_LED_PIN, blinkState);
 }
-
-
 
 // Initialize servo locations
 void initializeServos() {

@@ -21,6 +21,7 @@
 #define INCOME_DROP_OPEN    'o'
 #define INCOME_DROP_CLOSE  	'c'
 #define INCOME_BATTERY_V    'b'
+#define INCOME_NEW_TARGET_START 't'
 
 // MESSAGE CONSTANTS -- SEND
 #define DATA_PACKET 'p'
@@ -66,6 +67,14 @@ class Communicator {
 
     unsigned long timeAtDrop;
 
+    // For receiving new GPS target
+    byte targetLat[8];
+    byte targetLon[8];
+    double targetLatDoub;
+    double targetLonDoub;
+    unsigned long transmitStartTime;
+    unsigned int bufferIndex; // Current position in received Target GPS position update message
+
     //Initialize XBee by starting communication and putting in transparent mode
     bool initXBee();
     bool sendCmdAndWaitForOK(String cmd, int timeout = 3000); //3 second as default timeout
@@ -102,7 +111,7 @@ class Communicator {
 
 
     // Functions called by main program each loop
-    void recieveCommands();  // When drop command is received set altitude at drop
+    void recieveCommands(unsigned long curTime);  // When drop command is received set altitude at drop
     void sendData();  // Send current altitude, altitude at drop, roll, pitch, airspeed
     void checkToCloseDropBay(void);  //Close drop bay after 10 seconds of being open
     void recalculateTargettingNow(boolean withNewData);  //Check GPS data vs. target to see if we should drop

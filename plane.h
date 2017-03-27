@@ -47,7 +47,8 @@
 #define LONG_LOOP_TIME 500 	  // LED blinking
 
 // Hardware declerations
-#define HEARTBEAT_LED_PIN 50
+#define HEARTBEAT_LED_PIN A11
+#define NO_FIX_LED_PIN A10
 #define STATUS_LED_PIN 13
 
 // ------------------------------------ DROP BAY ------------------------------------
@@ -57,12 +58,13 @@ const int closeDropBayTimeout = 10000;
 // ------------------------------------ TARGETING ------------------------------------
 
 // Format: dd° mm.mmmm'
-#define TARGET_LATT 4413.5906      //ILC Parking lot4413.724
-#define TARGET_LONG -7629.3796             //-7629.492
-#define TARGET_ALTITUDE_M 0
-// 4413.682, -77629.518 = Passage between ILC and Walter Light Hall
+//Pitchers mound of baseball diamon in park   4413.5906, -7629.3796 
+//ILC Parking Lot  4413.724      -7629.492
+#define TARGET_LATT 4413.724
+#define TARGET_LONG -7629.492
+#define TARGET_ALTITUDE_M 0 // feet
 #define TARGET_RADIUS 20 //meters
-
+#define MINIMUM_DROP_ALTITUDE 100 // feet
 
 // -------------------------------------------- DEBUG --------------------------------------------
 
