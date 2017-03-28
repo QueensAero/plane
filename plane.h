@@ -44,7 +44,7 @@
 #define SLOW_LOOP_TIME  250  //250    //Xbee send packets of data 
 #define MEDIUM_LOOP_TIME 30  //50   // Servo updating
 #define FAST_LOOP_TIME 1  	  // MPU updating, if PID's then compute new servo values
-#define LONG_LOOP_TIME 500 	  // LED blinking
+#define LONG_LOOP_TIME 2000 	  // LED blinking
 
 // Hardware declerations
 #define HEARTBEAT_LED_PIN A11
@@ -71,7 +71,7 @@ const int closeDropBayTimeout = 10000;
 // During testing we might want to send over USB to computer. Instead of commenting out a lot of  'SerialUSB.print(...)' statements we can define a macro as below
 // If the line directly below is NOT commented out, then DEGUB_PRINT(...) will send to computer. If it is commented out, the macro DEBUG_PRINT/LN will be empty and
 // the compiler will optimize it out of the code automatically
-//#define DEBUG_COMMUNICATOR
+#define DEBUG_COMMUNICATOR
 #define DEBUG_SERIAL_BAUD 115200  // This actually doesn't matter - over USB it defaults to some high baudrate
 
 
@@ -79,11 +79,13 @@ const int closeDropBayTimeout = 10000;
   #define DEBUG_SERIAL Serial
   #define DEBUG_PRINT(x) DEBUG_SERIAL.print(x)
   #define DEBUG_PRINTLN(x) DEBUG_SERIAL.println(x)
+  #define DEBUG_PRINT_PRECISION(x,y) DEBUG_SERIAL.print(x,y)
   #define DEBUG_BEGIN(x) DEBUG_SERIAL.begin(x)
 #else
   #define DEBUG_PRINT(x)
   #define DEBUG_PRINTLN(x)
   #define DEBUG_BEGIN(x)
+  #define DEBUG_PRINT_PRECISION(x,y)
 #endif
 
 // Tests the targeting system with pre-defined GPS datapoints

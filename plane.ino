@@ -57,8 +57,7 @@ void setup() {
   DEBUG_BEGIN(DEBUG_SERIAL_BAUD); // This is to computer (this is ok even if not connected to computer)
   TARGET_BEGIN(DEBUG_SERIAL_BAUD); //if either defined we start it (note it may restart if both defined)
 
-  Serial.begin(115200);
-  //Serial.println("starting");
+  DEBUG_PRINTLN("Starting");
 
   // Do this first so servos are hopefully good regardless if below fails/times out/gets 'stuck'
   initializeServos();
@@ -477,10 +476,7 @@ void isr_rising_flaps()
     attachInterrupt(FLAPS_IN, isr_falling_flaps, FALLING);
   }
 
-   DEBUG_PRINTLN("FLAPS RISING ISR"); 
-
-   Serial.println("FLAPS RISING!!! \n\n\n\n");
-   
+   DEBUG_PRINTLN("FLAPS RISING ISR");    
   
 }
 
@@ -582,7 +578,5 @@ void isr_falling_flaps()
   attachInterrupt(FLAPS_IN, isr_rising_flaps, RISING);
 
    DEBUG_PRINTLN("FLAPS FALLING ISR");   
-
-      Serial.println("FLAPS FALLING!!! \n\n\n\n");
 
 }

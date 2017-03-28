@@ -107,6 +107,8 @@ class Communicator {
     boolean newParsedData = false;
     void getSerialDataFromGPS();
     void setupGPS();
+    void flushGPSSerial();
+    bool checkReturnString(int commandNum);
     boolean autoDrop = true;  //TEMPORARY
 
 

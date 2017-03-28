@@ -22,19 +22,33 @@
 #define _ADAFRUIT_GPS_H
 
 
-//Ryan's defined commands. Checksums calculated using http://www.hhhh.org/wiml/proj/nmeaxor.html
-//Some of these are identical to existing ones. Some are these aren't used.
-#define SET_BAUD_TO_115200 "$PMTK251,115200*1F"  //note print'ln' adds the <CR><LF> part automatically in sendCommand function
-#define SET_BAUD_TO_57600 "$PMTK251,57600*2C"
-#define SET_NMEA_UPDATE_RATE_10HZ "$PMTK220,100*2F"  //this may or may not also do the fix rate
-#define SET_NMEA_UPDATE_RATE_5HZ "$PMTK220,200*2C"
-#define SET_FIX_RATE_5HZ "$PMTK300,200,0,0,0,0*2F"    //this may or may not be only for older models
-#define ENABLE_SBAS_SATELLITES "$PMTK313,1*2E"    //unsure if this is default behaviour
-#define ENABLE_USING_WAAS_WITH_SBAS_SATS "$PMTK301,2*2E"  //call this after above
-#define SET_ONLY_GPRMC "$PMTK314,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*29"
-#define RESET_ALL_SETTINGS "$PMTK104*37"
+//----- USED COMMANDS --------/ (as of March 28, 2017)
+//note print'ln' adds the <CR><LF> part automatically in sendCommand function
+#define SET_SERIAL_UPDATE_RATE_0HZ "$PMTK220,10000*2F"  //Used during setting to pause output of the other strings
+#define SET_SERIAL_UPDATE_RATE_0HZ_COMMANDNUM 220 
+
+#define SET_SERIAL_UPDATE_RATE_5HZ "$PMTK220,200*2C"
+#define SET_SERIAL_UPDATE_RATE_5HZ_COMMANDNUM 220 
+
+#define SET_FIX_RATE_5HZ "$PMTK300,200,0,0,0,0*2F"    //Note 5Hz is max fix rate (so no point having higher serial update rate)
+#define SET_FIX_RATE_5HZ_COMMANDNUM 300 
+
+#define ENABLE_SBAS_SATELLITES "$PMTK313,1*2E"  //allow searching for more accurate SBAB sattelites
+#define ENABLE_SBAS_SATELLITES_COMMANDNUM 313 
+
+#define ENABLE_USING_WAAS_WITH_SBAS_SATS "$PMTK301,2*2E"  //Must be after ^. Allow using those sattelites to get 3d DGPS fix (using WAAS)
+#define ENABLE_USING_WAAS_WITH_SBAS_SATS_COMMANDNUM 301 
+
+#define PMTK_SET_NMEA_OUTPUT_RMCGGA "$PMTK314,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*28"
+#define PMTK_SET_NMEA_OUTPUT_RMCGGA_COMMANDNUM 314 
 
 
+//TO CREATE NEW COMMANDS
+//Use the manuals to determine the command
+//Use http://www.hhhh.org/wiml/proj/nmeaxor.html  to find checksum. Ensure leading '$' and trailing '*' are not in the space there
+
+
+/* UNUSED (some may be duplicate to above, so commented out)
 // different commands to set the update rate from once a second (1 Hz) to 10 times a second (10Hz)
 // Note that these only control the rate at which the position is echoed, to actually speed up the
 // position fix you must also send one of the position fix rate commands below too.
@@ -46,7 +60,7 @@
 #define PMTK_API_SET_FIX_CTL_5HZ  "$PMTK300,200,0,0,0,0*2F"
 // Can't fix position faster than 5 times a second!
 
-
+#define PMTK_SET_BAUD_115200 "$PMTK251,115200*1F"  
 #define PMTK_SET_BAUD_57600 "$PMTK251,57600*2C"
 #define PMTK_SET_BAUD_9600 "$PMTK251,9600*17"
 
@@ -59,9 +73,6 @@
 // turn off output
 #define PMTK_SET_NMEA_OUTPUT_OFF "$PMTK314,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0*28"
 
-// to generate your own sentences, check out the MTK command datasheet and use a checksum calculator
-// such as the awesome http://www.hhhh.org/wiml/proj/nmeaxor.html
-
 #define PMTK_LOCUS_STARTLOG  "$PMTK185,0*22"
 #define PMTK_LOCUS_STOPLOG "$PMTK185,1*23"
 #define PMTK_LOCUS_STARTSTOPACK "$PMTK001,185,3*3C"
@@ -69,8 +80,6 @@
 #define PMTK_LOCUS_ERASE_FLASH "$PMTK184,1*22"
 #define LOCUS_OVERLAP 0
 #define LOCUS_FULLSTOP 1
-
-
 
 // standby command & boot successful message
 #define PMTK_STANDBY "$PMTK161,0*28"
@@ -82,7 +91,8 @@
 
 // request for updates on antenna status
 #define PGCMD_ANTENNA "$PGCMD,33,1*6C"
-#define PGCMD_NOANTENNA "$PGCMD,33,0*6D"
+#define PGCMD_NOANTENNA "$PGCMD,33,0*6D"  
+*/
 
 
 #define KNOTS_TO_METERS_PS 0.514444
@@ -112,25 +122,13 @@ class Adafruit_GPS {
     // and minutes stored in units of 1/100000 degrees.  See pull #13 for more details:
     //   https://github.com/adafruit/Adafruit-GPS-Library/pull/13
     int32_t latitude_fixed, longitude_fixed;
-    //float latitudeDegrees, longitudeDegrees;
+    float latitudeDegrees, longitudeDegrees;
     float geoidheight, altitude;
     float speedKnots, speedMPS, angle, magvariation, HDOP;
     char lat, lon, mag;
     boolean fix;
     uint8_t fixquality, satellites;
 
-    /* Functions and Variables no longer used
-      void pause(boolean b);
-      void sendCommand(const char *);
-      boolean wakeup(void);
-      boolean standby(void);
-      boolean waitForSentence(const char *wait, uint8_t max = MAXWAITSENTENCE);
-      boolean LOCUS_StartLogger(void);
-      boolean LOCUS_StopLogger(void);
-      boolean LOCUS_ReadStatus(void);
-
-      uint16_t LOCUS_serial, LOCUS_records;
-      uint8_t LOCUS_type, LOCUS_mode, LOCUS_config, LOCUS_interval, LOCUS_distance, LOCUS_speed, LOCUS_status, LOCUS_percent;  */
 
 };
 

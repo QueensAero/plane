@@ -72,6 +72,8 @@ void Communicator::initialize() {
   //Setup the GPS
   setupGPS();
 
+  DEBUG_PRINTLN("Done Communicator Initialize (includes GPS)");
+
 }
 
 
@@ -274,8 +276,12 @@ void Communicator::sendData() {
   sendFloat(GPS.latitude);
   sendFloat(GPS.longitude);
   sendFloat(GPS.angle);
-  sendUint16_t(GPS.milliseconds);
-  sendUint8_t(GPS.seconds);
+  sendFloat(GPS.HDOP);
+  sendFloat(1.36);  //Something like "LastValidGPSTime" -> I forget what we determined -> for now just placeholder
+  sendUint8_t(GPS.fixquality);
+  
+  //sendUint16_t(GPS.milliseconds);
+  //sendUint8_t(GPS.seconds);   NET CHANGE -> Remove 3 bytes (1 uint16, 1 uint8), add 9 bytes (1 uint8, 2 floats) -> NET +6 bytes
   XBEE_SERIAL.print("ee");
 
 
@@ -286,13 +292,14 @@ void Communicator::sendData() {
   DEBUG_PRINT("  Spd: ");
   DEBUG_PRINT(GPS.speedMPS);
   DEBUG_PRINT("  Latt: ");
-  DEBUG_PRINT(GPS.latitude);
+  DEBUG_PRINT_PRECISION(GPS.latitude,5);
   DEBUG_PRINT("  Long: ");
-  DEBUG_PRINT(GPS.longitude);
-  DEBUG_PRINT("  ms: ");
-  DEBUG_PRINT(GPS.milliseconds);
-  DEBUG_PRINT("  s: ");
-  DEBUG_PRINTLN(GPS.seconds);
+  DEBUG_PRINT_PRECISION(GPS.longitude,5);
+  DEBUG_PRINT("  HDOP: ");
+  DEBUG_PRINT(GPS.HDOP);
+  DEBUG_PRINT("  FixQual: ");
+  DEBUG_PRINTLN(GPS.fixquality);
+
 
 }
 
@@ -460,7 +467,6 @@ void Communicator::setDropBayState(int src, int state) {
 // 10 seconds has passed since it was opened. If so, closes it.
 void Communicator::checkToCloseDropBay() {
 
-/* TEMP TODO DISABLED
   if (dropBayServoPos == DROP_BAY_OPEN) {
 
     unsigned long currentMillis = millis();
@@ -472,9 +478,9 @@ void Communicator::checkToCloseDropBay() {
       TARGET_PRINTLN(")");
 
       //TODO - RE-ENABLE THIS
-      //setDropBayState(AUTOMATIC_CMD, DROPBAY_CLOSE);
+      setDropBayState(AUTOMATIC_CMD, DROPBAY_CLOSE);
     }
-  }*/
+  }
 }
 
 
@@ -490,16 +496,50 @@ void Communicator::setupGPS() {
 
   // Start the serial communication
   GPS_SERIAL.begin(GPS_BAUD);
+  DEBUG_PRINTLN("Begin Setting GPS:");
 
-  //Settings should persist over power off, but having problems with that - so set these
-  //TODO - check for responses, not blindly hope it worked. Seems to not send response (ignore working on this for now...)
-  // Commands to configure GPS:
-  GPS_SERIAL.println(PMTK_SET_NMEA_OUTPUT_RMCONLY);     // Set to only output GPRMC (has all the info we need),
-  GPS_SERIAL.println(SET_NMEA_UPDATE_RATE_5HZ);     // Increase rate strings sent over serial
-  GPS_SERIAL.println(PMTK_API_SET_FIX_CTL_5HZ);     // Increase rate GPS 'connects' and syncs with satellites
-  GPS_SERIAL.println(ENABLE_SBAS_SATELLITES);       // Enable using a more accurate type of satellite
-  GPS_SERIAL.println(ENABLE_USING_WAAS_WITH_SBAS_SATS);   // Enable the above satellites in 'fix' mode (I think)
-  delay(1500);  //Not really sure if needed.
+
+
+  
+  //Settings should persist over power off, but safer to reset each time
+  // Commands to configure GPS: (each involves setting, flushing out previous data, then checking a correct return string received
+
+  // Stop updates (before this, cannot accurately receive responses to commands
+  GPS_SERIAL.println(SET_SERIAL_UPDATE_RATE_0HZ);
+  delay(1000);
+  flushGPSSerial();
+
+  // Repeat send the "stop update" command. Only this time, we should be able to check it was successfull
+  GPS_SERIAL.println(SET_SERIAL_UPDATE_RATE_0HZ);
+  checkReturnString(SET_SERIAL_UPDATE_RATE_0HZ_COMMANDNUM);
+  flushGPSSerial();
+
+
+  // Set the output to RMC and GGA
+  GPS_SERIAL.println(PMTK_SET_NMEA_OUTPUT_RMCGGA);     // Set to only output RMC and GGA
+  checkReturnString(PMTK_SET_NMEA_OUTPUT_RMCGGA_COMMANDNUM);
+  //flushGPSSerial();
+
+  // Increase rate GPS 'connects' and syncs with satellites
+  GPS_SERIAL.println(SET_FIX_RATE_5HZ);     
+  //flushGPSSerial();
+  checkReturnString(SET_FIX_RATE_5HZ_COMMANDNUM);
+
+  // Enable using a more accurate type of satellite
+  GPS_SERIAL.println(ENABLE_SBAS_SATELLITES);       
+  //flushGPSSerial();
+  checkReturnString(ENABLE_SBAS_SATELLITES_COMMANDNUM);
+
+  // Enable using the more accurate satellite to get a better fix
+  GPS_SERIAL.println(ENABLE_USING_WAAS_WITH_SBAS_SATS);   
+  //flushGPSSerial();
+  checkReturnString(ENABLE_USING_WAAS_WITH_SBAS_SATS_COMMANDNUM);
+
+  
+  // Increase rate strings sent over serial (was previously set to 0Hz)
+  GPS_SERIAL.println(SET_SERIAL_UPDATE_RATE_5HZ);     
+  //flushGPSSerial();
+  checkReturnString(SET_SERIAL_UPDATE_RATE_5HZ_COMMANDNUM);
 
 }
 
@@ -513,7 +553,8 @@ void Communicator::getSerialDataFromGPS() {
       nmeaBuf[nmeaBufInd - 1] = '\0'; // Add null terminating character (note: -1 is because nmeaBufInd is incremented in if statement)
       newParsedData = GPS.parse(nmeaBuf);   // This parses the string, and updates the values of GPS.lattitude, GPS.longitude etc.
       nmeaBufInd = 0;  // Regardless of it parsing sucessful, we want to reset position back to zero
-
+      //Potential flaw - the string length is used in parsing. By only setting index to 0, it may keep null terminating character, giving false future readings?
+    
       if (noFixLedIsOn == GPS.fix) {
         digitalWrite(NO_FIX_LED_PIN, !GPS.fix);
         noFixLedIsOn = !GPS.fix;
@@ -538,7 +579,7 @@ void Communicator::getSerialDataFromGPS() {
 //$PMTK001,<commandNum>,<success?>*32<CR><LF> is format
 //Success -> 0 = Invalid Command/Packet,  1 = Unsupported Command/packet,  2 = Valid Command, action failed,  3 = Success
 //For this function, anything other than 3 is considered failure
-bool checkReturnString(int commandNum)
+bool Communicator::checkReturnString(int commandNum)
 {
   //Get the return string
   unsigned long startT = millis();
@@ -547,11 +588,15 @@ bool checkReturnString(int commandNum)
   char returnString[maxLength];
   int newChar;
   bool gotPacket = false;
+  //DEBUG_PRINT("Checking return string for command ");  DEBUG_PRINTLN(commandNum);
+
+  
   while((millis() - startT) < maxT && receivedIndex < maxLength)
   {
-    if(Serial.available() > 0)
+    
+    if(GPS_SERIAL.available() > 0)
     {
-      returnString[receivedIndex] = Serial.read();
+      returnString[receivedIndex] = GPS_SERIAL.read();
 
       //Check for end of string
       if (returnString[receivedIndex++] == '\n') // Increment index after checking if current character signifies the end of a string
@@ -565,9 +610,12 @@ bool checkReturnString(int commandNum)
 
   if(!gotPacket)  //If we didn't get a packet, don't bother trying below
   {
+    DEBUG_PRINTLN(returnString);
+    DEBUG_PRINTLN("Did not get a packet when waiting for GPS response");
     return false;
   }
-  
+
+  //DEBUG_PRINTLN(returnString);
   
   // Check for valid checksum
   if (returnString[strlen(returnString) - 4] == '*') 
@@ -575,6 +623,7 @@ bool checkReturnString(int commandNum)
     uint16_t sum = GPS.parseHex(returnString[strlen(returnString) - 3]) * 16;
     sum += GPS.parseHex(returnString[strlen(returnString) - 2]);
 
+    
     // Check checksum
     // NOTE the starting at i=1!! based on how their code worked, the first the string actually begin as:  s[0] = '\n', s[1] = $, s[2] = 'G'  ie. the checksum characters start at i=2 index, not i=1 as would be expected
     // In the original library code this for loop began at i=2 to account for:they set the index back to 0, then immidately 'added' the current characer (the newline) at index 0, then the next string began with $ at s[1]
@@ -584,11 +633,17 @@ bool checkReturnString(int commandNum)
     }
 
     if (sum != 0) { // Bad checksum
+      
+      DEBUG_PRINT("Bad Checksum -> sum != 0. (Sum = ");
+      DEBUG_PRINTLN(sum);
+      
       return false;
     }
   }
   else
   {
+    DEBUG_PRINTLN(returnString);
+    DEBUG_PRINTLN("Asterix in wrong spot");
     return false;  //we don't have one
   }
 
@@ -600,22 +655,45 @@ bool checkReturnString(int commandNum)
   int commandNumReturn = atoi(ind);
   if(commandNumReturn != commandNum)
   {
+    DEBUG_PRINT("Command Num Wrong: ");
+    DEBUG_PRINT(commandNumReturn);
+    DEBUG_PRINT("\t(Should be ");
+    DEBUG_PRINTLN(commandNum);
     return false;
   }
 
 
   //Extract "success" and check it's 3
   ind = strchr(ind, ',') + 1;  //Move pointer to past second comma
-  int successReturn = atoi(ind) + 1;
+  int successReturn = atoi(ind);
   if(successReturn != 3)
   {
+    DEBUG_PRINT("Success number = ");
+    DEBUG_PRINTLN(successReturn);
     return false;
   }
+
+  DEBUG_PRINT("GPS Successfull command - Number = "); DEBUG_PRINTLN(commandNum);
 
   //Getting here means we're good 
   return true;  
 }
 
+void Communicator::flushGPSSerial()
+{
+  delay(200);
+  char hold;
+  int numBytes = GPS_SERIAL.available();
+
+  //DEBUG_PRINT("Flushed Bytes: ");
+  for(int i=0;i<numBytes;i++)  {
+    //DEBUG_PRINT((char)GPS_SERIAL.read());
+  }
+  
+  //DEBUG_PRINTLN("\t End Flushed Bytes");
+
+
+}
 
 
 
