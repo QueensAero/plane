@@ -277,7 +277,7 @@ void Communicator::sendData() {
   sendFloat(GPS.longitude);
   sendFloat(GPS.angle);
   sendFloat(GPS.HDOP);
-  sendFloat(GPS.msSinceValidHDOP);  //Something like "LastValidGPSTime" -> I forget what we determined -> for now just placeholder
+  sendFloat((float)GPS.msSinceValidHDOP);
   sendUint8_t(GPS.fixquality);
   XBEE_SERIAL.print("ee");
 

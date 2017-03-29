@@ -123,7 +123,8 @@ class Adafruit_GPS {
     // Fixed point latitude and longitude value with degrees stored in units of 1/100000 degrees,
     // and minutes stored in units of 1/100000 degrees.  See pull #13 for more details:
     //   https://github.com/adafruit/Adafruit-GPS-Library/pull/13
-    int32_t latitude_fixed, longitude_fixed, msSinceValidHDOP, timeLastValidHDOP;
+    int32_t latitude_fixed, longitude_fixed;
+	uint32_t msSinceValidHDOP, timeLastValidHDOP;
     float latitudeDegrees, longitudeDegrees;
     float geoidheight, altitude;
     float speedKnots, speedMPS, angle, magvariation, HDOP;
