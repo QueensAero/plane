@@ -474,8 +474,8 @@ void Communicator::checkToCloseDropBay() {
       TARGET_PRINT((currentMillis - timeAtDrop));
       TARGET_PRINTLN(")");
 
-      //TODO - RE-ENABLE THIS
-      setDropBayState(AUTOMATIC_CMD, DROPBAY_CLOSE);
+      //TEMPORARY / TODO - RE-ENABLE THIS
+      //setDropBayState(AUTOMATIC_CMD, DROPBAY_CLOSE);
     }
   }
 }
