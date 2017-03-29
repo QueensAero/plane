@@ -2,9 +2,6 @@
 
 //http://students.sae.org/cds/aerodesign/rules/2015_aero_rules.pdf
 
-//TODO - GPS 'Fix' status LED
-//Pushbutton de-bouncing
-
 #include "plane.h" //all definitions
 
 // #Includes

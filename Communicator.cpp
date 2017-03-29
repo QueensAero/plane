@@ -360,7 +360,7 @@ void Communicator::recalculateTargettingNow(boolean withNewData) {
       currentTargeterDataPoint = 0;
     }
 
-    isReadyToDrop = targeter.setAndCheckCurrentData(GPSLatitudes[currentTargeterDataPoint], GPSLongitudes[currentTargeterDataPoint], altitudes[currentTargeterDataPoint], velocities[currentTargeterDataPoint], headings[currentTargeterDataPoint], millis());
+    isReadyToDrop = targeter.setAndCheckCurrentData(GPSLatitudes[currentTargeterDataPoint], GPSLongitudes[currentTargeterDataPoint], altitudes[currentTargeterDataPoint], velocities[currentTargeterDataPoint], headings[currentTargeterDataPoint], millis(), true);  //HDOPOK = true for testing purposes
   }
   else {
 #ifndef Targeter_Debug_Print
@@ -375,7 +375,7 @@ void Communicator::recalculateTargettingNow(boolean withNewData) {
 #ifndef Targeter_Debug_Print
     TARGET_PRINTLN("\t Real GPS: Recalaculating Targeting with New Data \t");
 #endif
-    isReadyToDrop = targeter.setAndCheckCurrentData(GPS.latitude, -GPS.longitude, altitudeFt, GPS.speedMPS, GPS.angle, millis(), GPS.HDOP);
+    isReadyToDrop = targeter.setAndCheckCurrentData(GPS.latitude, -GPS.longitude, altitudeFt, GPS.speedMPS, GPS.angle, millis(), GPS.HDOP_OK);
 
   }
   else {

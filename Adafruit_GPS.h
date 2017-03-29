@@ -113,6 +113,8 @@ class Adafruit_GPS {
     void init();
     uint8_t parseHex(char c);
     boolean parse(char *);
+    void HDOPCheck();
+
 
     uint8_t hour, minute, seconds, year, month, day;
     uint16_t milliseconds;

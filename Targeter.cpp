@@ -106,8 +106,9 @@ bool Targeter::performTargetCalcsAndEvaluateResults()
   /***** Evaluate Results ******/
 
   //If altitude is below 100ft, do not drop regardless of other conditions
-  if(currentAltitudeM < MINIMUM_DROP_ALTITUDE_M)
-    return false;
+  //TEMPORARY DISABLED
+  //if(currentAltitudeM < MINIMUM_DROP_ALTITUDE_M)
+  //  return false;
   //else...
   
   // We need to have sufficient accuracy to drop
