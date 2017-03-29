@@ -277,11 +277,8 @@ void Communicator::sendData() {
   sendFloat(GPS.longitude);
   sendFloat(GPS.angle);
   sendFloat(GPS.HDOP);
-  sendFloat(1.36);  //Something like "LastValidGPSTime" -> I forget what we determined -> for now just placeholder
+  sendFloat(GPS.msSinceValidHDOP);  //Something like "LastValidGPSTime" -> I forget what we determined -> for now just placeholder
   sendUint8_t(GPS.fixquality);
-  
-  //sendUint16_t(GPS.milliseconds);
-  //sendUint8_t(GPS.seconds);   NET CHANGE -> Remove 3 bytes (1 uint16, 1 uint8), add 9 bytes (1 uint8, 2 floats) -> NET +6 bytes
   XBEE_SERIAL.print("ee");
 
 

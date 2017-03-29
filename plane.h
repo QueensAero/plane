@@ -64,7 +64,7 @@ const int closeDropBayTimeout = 10000;
 #define TARGET_LONG -7629.492
 #define TARGET_ALTITUDE_M 0 // feet
 #define TARGET_RADIUS 20 //meters
-#define MINIMUM_DROP_ALTITUDE 100 // feet
+#define MINIMUM_DROP_ALTITUDE_M 30.48 // feet
 
 // -------------------------------------------- DEBUG --------------------------------------------
 

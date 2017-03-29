@@ -10,7 +10,7 @@ class Targeter {
   public:
     Targeter();
     boolean recalculate();
-    boolean setAndCheckCurrentData(double _currentLatitude, double _currentLongitude, double _currentAltitudeFt, double _currentVelocityMPS, double _currentHeading, double _currentDataTimestamp, double _currentHDOP);
+    boolean setAndCheckCurrentData(double _currentLatitude, double _currentLongitude, double _currentAltitudeFt, double _currentVelocityMPS, double _currentHeading, double _currentDataTimestamp, boolean _hdopOk);
     void setTargetData(double _targetLatitude, double _targetLongitude, double _targetAltitudeM);
 
   private:
@@ -32,7 +32,7 @@ class Targeter {
     double currentEasting = 0, currentNorthing = 0;
     double estDropEasting = 0, estDropNorthing = 0;
 
-    double currentHDOP; // horizontal dilution of precision
+    boolean HDOP_OK; //Is the GPS accuracy OK?
 
     // ------------------------------------ TARGET POSITION ------------------------------------
 
