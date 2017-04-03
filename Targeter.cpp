@@ -2,7 +2,6 @@
 #include "Arduino.h"
 #include "plane.h"
 
-//TODO - for autodropping conditions, have altitude checked (make sure at 100 ft)
 
 Targeter::Targeter() {
 
@@ -106,7 +105,7 @@ bool Targeter::performTargetCalcsAndEvaluateResults()
   /***** Evaluate Results ******/
 
   //If altitude is below 100ft, do not drop regardless of other conditions
-  //TEMPORARY DISABLED
+  //TODO TEMPORARY DISABLED
   //if(currentAltitudeM < MINIMUM_DROP_ALTITUDE_M)
   //  return false;
   //else...
@@ -128,7 +127,6 @@ bool Targeter::performTargetCalcsAndEvaluateResults()
   if (distFromEstDropPosToTarget > TARGET_RADIUS)
     return false;
 
-  // 3. Altitude???
   // We are now close enough to be in rings, and if under 0.2 we want to drop
   return true; 
 }
@@ -214,7 +212,6 @@ void Targeter::calculateDistAlongPathToMinLateralErr() {
    Overall approximation of 0.9 correction factor
    See MATLAB script for more details
 */
-//#define CORRECTION_FACTOR 0.9
 
 void Targeter::calculateHorizDistance() {
 
@@ -257,20 +254,14 @@ void Targeter::calculateHorizDistance() {
 */
 void Targeter::calculateTimeTillDrop() {
 
-  
-  //Special Case: Plane is 'before' target, and est drop position is 'after' target.
-  //Test: If drop easting and current easting are on opposite sides of the target easting (and same for nothing) 
-  //This is the first if (which is used to prevent this scenario from triggering 'Moving away from target'
-    if(   estDropEasting > targetEasting && currentEasting < targetEasting      ||    estDropEasting < targetEasting && currentEasting > targetEasting  //Compare easting
-      ||  estDropNorthing > targetNorthing && currentNorthing < targetNorthing  ||    estDropNorthing < targetNorthing && currentNorthing > targetNorthing) //Compare northing
-    {
-      //This actually works properly. distAlongPathToMinLateralErr is positive, and horizontal distance should be subtracted
-      timeTillDrop = (distAlongPathToMinLateralErr - horizDistance) / currentVelocityMPS;
-    }
+  //Need to handle case where moving away from target (PLANE is past target) and moving towards.
+  //Note - you do not need to hangle the case where plane is before target and drop location is after - this falls under 
+  //'moving towards' and can be handled the same way.
+
     //Moving away from target
-    else if(distFromEstDropPosToTarget > directDistanceToTarget)
+    if(distFromEstDropPosToTarget > directDistanceToTarget)
     {
-        timeTillDrop = (-distAlongPathToMinLateralErr - horizDistance) / currentVelocityMPS;   //now distAlongPathToMinLateralErr is a negative
+        timeTillDrop = (-distAlongPathToMinLateralErr - horizDistance) / currentVelocityMPS;   //distAlongPathToMinLateralErr is a negative
     }
     else
     {
@@ -287,7 +278,7 @@ void Targeter::calculateTimeTillDrop() {
 //A heading (ie. N = 0 degrees) into a math angle (typical x/y origin, x axis = 0 degrees)
 double Targeter::convertHeadingToMathAngle(double heading) {
   // Transform from compass degrees to typical math degrees
-  double angle = -1 * (heading - 90);
+  double angle = - heading + 90;
   if (angle < 0) {
     angle = 360 + angle;
   }

@@ -126,7 +126,7 @@ class Adafruit_GPS {
     int32_t latitude_fixed, longitude_fixed;
 	unsigned long msSinceValidHDOP, timeLastValidHDOP;
     float latitudeDegrees, longitudeDegrees;
-    float geoidheight, altitude;
+    float geoidheight, altitudeMeters;
     float speedKnots, speedMPS, angle, magvariation, HDOP;
     char lat, lon, mag;
     boolean fix, HDOP_OK;

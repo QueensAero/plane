@@ -16,6 +16,21 @@
   }
 
   float updateAltitudeFtFilter(float measurement) {
+
+    //Cap the change to 30 ft (prevent large error values from impacting drop significantly)
+    if(abs(measurement - X) > 30)
+    {
+      if(measurement > X)
+      {
+        meausurement = X + 30;  //cap positive change to 30 ft
+      }
+      else
+      {
+        meausurement = X - 30;  //cap negative change to 30 ft
+      }
+      
+    }
+    
     measurementUpdate();
     float result = X + (measurement - X) * K;
     X = result;

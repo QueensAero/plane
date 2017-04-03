@@ -278,11 +278,13 @@ void Communicator::sendData() {
   sendFloat(GPS.angle);
   sendFloat(GPS.HDOP);
   sendFloat((float)GPS.msSinceValidHDOP);
+  sendFlot(GPS.altitudeMeters);
   sendUint8_t(GPS.fixquality);
   XBEE_SERIAL.print("ee");
 
 
   //If Debugging, send to Serial Monitor (Note this doesn't use the bytewise representation of numbers)
+  /*
   DEBUG_PRINT("Message:");
   DEBUG_PRINT("Alt: ");
   DEBUG_PRINT(altitudeFt);
@@ -295,7 +297,7 @@ void Communicator::sendData() {
   DEBUG_PRINT("  HDOP: ");
   DEBUG_PRINT(GPS.HDOP);
   DEBUG_PRINT("  FixQual: ");
-  DEBUG_PRINTLN(GPS.fixquality);
+  DEBUG_PRINTLN(GPS.fixquality);*/
 
 
 }
@@ -495,50 +497,22 @@ void Communicator::setupGPS() {
   GPS_SERIAL.begin(GPS_BAUD);
   DEBUG_PRINTLN("Begin Setting GPS:");
 
-
-
   
   //Settings should persist over power off, but safer to reset each time
   // Commands to configure GPS: (each involves setting, flushing out previous data, then checking a correct return string received
-
-  // Stop updates (before this, cannot accurately receive responses to commands
-  GPS_SERIAL.println(SET_SERIAL_UPDATE_RATE_0HZ);
-  delay(1000);
-  flushGPSSerial();
-
-  // Repeat send the "stop update" command. Only this time, we should be able to check it was successfull
-  GPS_SERIAL.println(SET_SERIAL_UPDATE_RATE_0HZ);
-  checkReturnString(SET_SERIAL_UPDATE_RATE_0HZ_COMMANDNUM);
-  flushGPSSerial();
-
-
-  // Set the output to RMC and GGA
-  GPS_SERIAL.println(PMTK_SET_NMEA_OUTPUT_RMCGGA);     // Set to only output RMC and GGA
-  checkReturnString(PMTK_SET_NMEA_OUTPUT_RMCGGA_COMMANDNUM);
-  //flushGPSSerial();
-
-  // Increase rate GPS 'connects' and syncs with satellites
-  GPS_SERIAL.println(SET_FIX_RATE_5HZ);     
-  //flushGPSSerial();
-  checkReturnString(SET_FIX_RATE_5HZ_COMMANDNUM);
-
-  // Enable using a more accurate type of satellite
-  GPS_SERIAL.println(ENABLE_SBAS_SATELLITES);       
-  //flushGPSSerial();
-  checkReturnString(ENABLE_SBAS_SATELLITES_COMMANDNUM);
-
-  // Enable using the more accurate satellite to get a better fix
-  GPS_SERIAL.println(ENABLE_USING_WAAS_WITH_SBAS_SATS);   
-  //flushGPSSerial();
-  checkReturnString(ENABLE_USING_WAAS_WITH_SBAS_SATS_COMMANDNUM);
-
-  
-  // Increase rate strings sent over serial (was previously set to 0Hz)
-  GPS_SERIAL.println(SET_SERIAL_UPDATE_RATE_5HZ);     
-  //flushGPSSerial();
-  checkReturnString(SET_SERIAL_UPDATE_RATE_5HZ_COMMANDNUM);
+  if(!sendGPSConfigureCommands())
+  {
+    //Try again:
+    if(!sendGPSConfigureCommands())
+    {
+      //TODO setup message to tell ground station
+      
+    }    
+  }
 
 }
+
+
 
 void Communicator::getSerialDataFromGPS() {
 
@@ -559,8 +533,6 @@ void Communicator::getSerialDataFromGPS() {
 
 #ifndef Targeter_Test  //Otherwise may confuse real data and simulated data
       recalculateTargettingNow(true);
-      //String str(nmeaBuf);
-      //DEBUG_PRINTLN(str);
 #endif
 
     }
@@ -572,6 +544,52 @@ void Communicator::getSerialDataFromGPS() {
   }
 
 }
+
+
+bool Communicator::sendGPSConfigureCommands()
+{
+  
+  // Stop updates (before this, cannot accurately receive responses to commands
+  GPS_SERIAL.println(SET_SERIAL_UPDATE_RATE_0HZ);
+  delay(1000);
+  flushGPSSerial();
+
+  // Repeat send the "stop update" command. Only this time, we should be able to check it was successfull
+  GPS_SERIAL.println(SET_SERIAL_UPDATE_RATE_0HZ);
+  if(!checkReturnString(SET_SERIAL_UPDATE_RATE_0HZ_COMMANDNUM)) {  return false;}
+  flushGPSSerial();
+
+
+  // Set the output to RMC and GGA
+  GPS_SERIAL.println(PMTK_SET_NMEA_OUTPUT_RMCGGA);     // Set to only output RMC and GGA
+  if(!checkReturnString(PMTK_SET_NMEA_OUTPUT_RMCGGA_COMMANDNUM)) {  return false;}
+  //flushGPSSerial();
+
+  // Increase rate GPS 'connects' and syncs with satellites
+  GPS_SERIAL.println(SET_FIX_RATE_5HZ);     
+  //flushGPSSerial();
+  if(!checkReturnString(SET_FIX_RATE_5HZ_COMMANDNUM)) {  return false;}
+
+  // Enable using a more accurate type of satellite
+  GPS_SERIAL.println(ENABLE_SBAS_SATELLITES);       
+  //flushGPSSerial();
+  if(!checkReturnString(ENABLE_SBAS_SATELLITES_COMMANDNUM)) {  return false;}
+
+  // Enable using the more accurate satellite to get a better fix
+  GPS_SERIAL.println(ENABLE_USING_WAAS_WITH_SBAS_SATS);   
+  //flushGPSSerial();
+  if(!checkReturnString(ENABLE_USING_WAAS_WITH_SBAS_SATS_COMMANDNUM)) {  return false;}
+
+  
+  // Increase rate strings sent over serial (was previously set to 0Hz)
+  GPS_SERIAL.println(SET_SERIAL_UPDATE_RATE_5HZ);     
+  //flushGPSSerial();
+  if(!checkReturnString(SET_SERIAL_UPDATE_RATE_5HZ_COMMANDNUM)) {  return false;}
+
+  //If got here, successful
+  return true;  
+}
+
 
 //$PMTK001,<commandNum>,<success?>*32<CR><LF> is format
 //Success -> 0 = Invalid Command/Packet,  1 = Unsupported Command/packet,  2 = Valid Command, action failed,  3 = Success
@@ -585,12 +603,10 @@ bool Communicator::checkReturnString(int commandNum)
   char returnString[maxLength];
   int newChar;
   bool gotPacket = false;
-  //DEBUG_PRINT("Checking return string for command ");  DEBUG_PRINTLN(commandNum);
 
   
   while((millis() - startT) < maxT && receivedIndex < maxLength)
-  {
-    
+  {   
     if(GPS_SERIAL.available() > 0)
     {
       returnString[receivedIndex] = GPS_SERIAL.read();
@@ -607,12 +623,9 @@ bool Communicator::checkReturnString(int commandNum)
 
   if(!gotPacket)  //If we didn't get a packet, don't bother trying below
   {
-    DEBUG_PRINTLN(returnString);
     DEBUG_PRINTLN("Did not get a packet when waiting for GPS response");
     return false;
   }
-
-  //DEBUG_PRINTLN(returnString);
   
   // Check for valid checksum
   if (returnString[strlen(returnString) - 4] == '*') 
@@ -639,7 +652,7 @@ bool Communicator::checkReturnString(int commandNum)
   }
   else
   {
-    DEBUG_PRINTLN(returnString);
+    //DEBUG_PRINTLN(returnString);
     DEBUG_PRINTLN("Asterix in wrong spot");
     return false;  //we don't have one
   }

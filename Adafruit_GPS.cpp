@@ -36,10 +36,8 @@ void Adafruit_GPS::init() {
   lat = lon = mag = 0; // char
   fix = false; // boolean
   milliseconds = 0; // uint16_t
-  latitude = longitude = geoidheight = altitude = speedKnots = speedMPS = angle = magvariation = HDOP = latitudeDegrees = longitudeDegrees = 0.0; // float
-  lat = lon = '0'; //char
-  msSinceValidHDOP = timeLastValidHDOP = 0; //unsigned long
-  
+  latitude = longitude = geoidheight = altitudeMeters =	speedKnots = speedMPS = angle = magvariation = HDOP = 0.0; // float
+  lat = lon = '0';
 
 }
 
@@ -65,7 +63,7 @@ boolean Adafruit_GPS::parse(char *nmea) {
     }
   }
 
-  long degree;
+  int32_t degree;
   long minutes;
   char degreebuff[10];
 
@@ -102,12 +100,12 @@ boolean Adafruit_GPS::parse(char *nmea) {
       strncpy(degreebuff, p, 2);
       p += 2;
       degreebuff[2] = '\0';
-      degree = atol(degreebuff) * 10000000;
+      long degree = atol(degreebuff) * 10000000;
       strncpy(degreebuff, p, 2); // minutes
       p += 3; // Skip decimal point
       strncpy(degreebuff + 2, p, 4);
       degreebuff[6] = '\0';
-      minutes = 50 * atol(degreebuff) / 3;
+      long minutes = 50 * atol(degreebuff) / 3;
 
       // A couple ways of representing lattitude - pure degrees, degreeminutes and stuff.  Need to decide which format. Same below with Longitude
       //latitude_fixed = degree + minutes;
@@ -287,7 +285,7 @@ boolean Adafruit_GPS::parse(char *nmea) {
     p = strchr(p, ',') + 1;
     if (',' != *p)
     {
-      altitude = atof(p);
+      altitudeMeters = atof(p);
     }
 
     p = strchr(p, ',') + 1;
@@ -334,6 +332,7 @@ void Adafruit_GPS::HDOPCheck() {
 	} else {
 		timeLastValidHDOP = millis();
 		msSinceValidHDOP = 0;
+    HDOP_OK = true;
 	}
 }
 

@@ -86,6 +86,15 @@ class Communicator {
     void sendUint8_t(uint8_t toSend);
 
 
+    //GPS and Autotargeting
+    boolean autoDrop = true;  //TODO TEMPORARY
+    int nmeaBufInd = 0;
+    boolean newParsedData = false;
+    void setupGPS();
+    void flushGPSSerial();
+    bool checkReturnString(int commandNum);
+    bool sendGPSConfigureCommands();
+
   public:
 
     int currentTargeterDataPoint = -1;  //used for testing targeter
@@ -102,14 +111,8 @@ class Communicator {
     boolean restart;
 
     //gps variables and functions
-    char nmeaBuf[MAXLINELENGTH];
-    int nmeaBufInd = 0;
-    boolean newParsedData = false;
-    void getSerialDataFromGPS();
-    void setupGPS();
-    void flushGPSSerial();
-    bool checkReturnString(int commandNum);
-    boolean autoDrop = true;  //TEMPORARY
+    char nmeaBuf[MAXLINELENGTH];  //needs to be public so GPS class can access
+    void getSerialDataFromGPS();  //needs to be public since called from plane
 
 
     // Functions called by main program each loop
