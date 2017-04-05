@@ -71,7 +71,7 @@ const int closeDropBayTimeout = 10000;
 // During testing we might want to send over USB to computer. Instead of commenting out a lot of  'SerialUSB.print(...)' statements we can define a macro as below
 // If the line directly below is NOT commented out, then DEGUB_PRINT(...) will send to computer. If it is commented out, the macro DEBUG_PRINT/LN will be empty and
 // the compiler will optimize it out of the code automatically
-//#define DEBUG_COMMUNICATOR
+#define DEBUG_COMMUNICATOR
 #define DEBUG_SERIAL_BAUD 115200  // This actually doesn't matter - over USB it defaults to some high baudrate
 
 

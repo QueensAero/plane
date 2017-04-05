@@ -278,7 +278,7 @@ void Communicator::sendData() {
   sendFloat(GPS.angle);
   sendFloat(GPS.HDOP);
   sendFloat((float)GPS.msSinceValidHDOP);
-  sendFlot(GPS.altitudeMeters);
+  sendFloat(GPS.altitudeMeters);
   sendUint8_t(GPS.fixquality);
   XBEE_SERIAL.print("ee");
 
@@ -553,39 +553,75 @@ bool Communicator::sendGPSConfigureCommands()
   GPS_SERIAL.println(SET_SERIAL_UPDATE_RATE_0HZ);
   delay(1000);
   flushGPSSerial();
-
-  // Repeat send the "stop update" command. Only this time, we should be able to check it was successfull
-  GPS_SERIAL.println(SET_SERIAL_UPDATE_RATE_0HZ);
-  if(!checkReturnString(SET_SERIAL_UPDATE_RATE_0HZ_COMMANDNUM)) {  return false;}
-  flushGPSSerial();
-
-
-  // Set the output to RMC and GGA
-  GPS_SERIAL.println(PMTK_SET_NMEA_OUTPUT_RMCGGA);     // Set to only output RMC and GGA
-  if(!checkReturnString(PMTK_SET_NMEA_OUTPUT_RMCGGA_COMMANDNUM)) {  return false;}
-  //flushGPSSerial();
-
-  // Increase rate GPS 'connects' and syncs with satellites
-  GPS_SERIAL.println(SET_FIX_RATE_5HZ);     
-  //flushGPSSerial();
-  if(!checkReturnString(SET_FIX_RATE_5HZ_COMMANDNUM)) {  return false;}
-
-  // Enable using a more accurate type of satellite
-  GPS_SERIAL.println(ENABLE_SBAS_SATELLITES);       
-  //flushGPSSerial();
-  if(!checkReturnString(ENABLE_SBAS_SATELLITES_COMMANDNUM)) {  return false;}
-
-  // Enable using the more accurate satellite to get a better fix
-  GPS_SERIAL.println(ENABLE_USING_WAAS_WITH_SBAS_SATS);   
-  //flushGPSSerial();
-  if(!checkReturnString(ENABLE_USING_WAAS_WITH_SBAS_SATS_COMMANDNUM)) {  return false;}
-
+  int check = 2, errorLocation = 1;
   
-  // Increase rate strings sent over serial (was previously set to 0Hz)
-  GPS_SERIAL.println(SET_SERIAL_UPDATE_RATE_5HZ);     
-  //flushGPSSerial();
-  if(!checkReturnString(SET_SERIAL_UPDATE_RATE_5HZ_COMMANDNUM)) {  return false;}
+  while(check) {
+	  // Repeat send the "stop update" command. Only this time, we should be able to check it was successfull
+	  if(errorLocation == 1) {
+		  GPS_SERIAL.println(SET_SERIAL_UPDATE_RATE_0HZ);
+		  if(!checkReturnString(SET_SERIAL_UPDATE_RATE_0HZ_COMMANDNUM)) {  
+			check--;
+			flushGPSSerial();
+			continue; 
+			} 
+			else {
+			check = 2;
+			errorLocation++; 
+			//delay(1000);
+			flushGPSSerial();}
+	  }
 
+	  // Set the output to RMC and GGA
+	  if(errorLocation == 2) {
+		  GPS_SERIAL.println(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+		  if(!checkReturnString(PMTK_SET_NMEA_OUTPUT_RMCGGA_COMMANDNUM)) {  
+			check--;
+			continue; } 
+			else {
+			check = 2;
+			errorLocation++; }
+	  }
+	  // Increase rate GPS 'connects' and syncs with satellites
+	  if(errorLocation == 3)  {
+		  GPS_SERIAL.println(SET_FIX_RATE_5HZ);     
+		  if(!checkReturnString(SET_FIX_RATE_5HZ_COMMANDNUM)) {  
+			check--;
+			continue; } 
+			else {
+			check = 2;
+			errorLocation++; }
+	  }
+	  // Enable using a more accurate type of satellite
+	  if(errorLocation == 4) {
+		  GPS_SERIAL.println(ENABLE_SBAS_SATELLITES);       
+		  if(!checkReturnString(ENABLE_SBAS_SATELLITES_COMMANDNUM)) {  
+			 check--;
+			 continue;} 
+			 else {
+			 check = 2;
+			 errorLocation++; }
+	  }
+	  // Enable using the more accurate satellite to get a better fix
+	  if(errorLocation == 5) {
+		  GPS_SERIAL.println(ENABLE_USING_WAAS_WITH_SBAS_SATS);   
+		  if(!checkReturnString(ENABLE_USING_WAAS_WITH_SBAS_SATS_COMMANDNUM)) {  
+			check--;
+			continue;} 
+			else {
+			check = 2;
+			errorLocation++; }
+	  }	  
+	  // Increase rate strings sent over serial (was previously set to 0Hz)
+	  if(errorLocation == 6) {
+		  GPS_SERIAL.println(SET_SERIAL_UPDATE_RATE_5HZ);     
+		  if(!checkReturnString(SET_SERIAL_UPDATE_RATE_5HZ_COMMANDNUM)) {  
+			check--;
+			continue;} 
+			else { break;}
+	  }
+  }
+  if(!check)
+	  return false;
   //If got here, successful
   return true;  
 }
@@ -652,11 +688,10 @@ bool Communicator::checkReturnString(int commandNum)
   }
   else
   {
-    //DEBUG_PRINTLN(returnString);
     DEBUG_PRINTLN("Asterix in wrong spot");
     return false;  //we don't have one
   }
-
+  DEBUG_PRINTLN(returnString);
   //Valid string, check it's the right command
   char *ind = returnString;  //set pointer equal to start
   ind = strchr(ind, ',') + 1;  //Move pointer to just past first command
@@ -697,7 +732,8 @@ void Communicator::flushGPSSerial()
 
   //DEBUG_PRINT("Flushed Bytes: ");
   for(int i=0;i<numBytes;i++)  {
-    //DEBUG_PRINT((char)GPS_SERIAL.read());
+    hold = (char)GPS_SERIAL.read();
+    //DEBUG_PRINT(hold);
   }
   
   //DEBUG_PRINTLN("\t End Flushed Bytes");

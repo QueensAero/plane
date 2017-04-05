@@ -22,11 +22,11 @@
     {
       if(measurement > X)
       {
-        meausurement = X + 30;  //cap positive change to 30 ft
+        measurement = X + 30;  //cap positive change to 30 ft
       }
       else
       {
-        meausurement = X - 30;  //cap negative change to 30 ft
+        measurement = X - 30;  //cap negative change to 30 ft
       }
       
     }

@@ -36,8 +36,9 @@ void Adafruit_GPS::init() {
   lat = lon = mag = 0; // char
   fix = false; // boolean
   milliseconds = 0; // uint16_t
-  latitude = longitude = geoidheight = altitudeMeters =	speedKnots = speedMPS = angle = magvariation = HDOP = 0.0; // float
+  latitude = longitude = geoidheight = altitudeMeters =	speedKnots = speedMPS = angle = magvariation = 0.0; // float
   lat = lon = '0';
+  HDOP = 5.0; //Ensures the HDOP initializes to 'bad'
 
 }
 
