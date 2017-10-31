@@ -66,6 +66,9 @@ void Communicator::initialize() {
   dropBayServoPos = DROP_BAY_CLOSED;
   dropServo.writeMicroseconds(dropBayServoPos);
 
+  tiltServo.attach(TILT_PIN);
+  panServo.attach(PAN_PIN);
+  
   int maxTries = 3, numTries = 0;
   while (!initXBee() && ++numTries < maxTries); //Keep trying to put into transparent mode until failure
 
@@ -241,7 +244,9 @@ void Communicator::recieveCommands(unsigned long curTime) {
       // Start of a gps target position update message
       bufferIndex = 1;
       transmitStartTime = curTime;
-    }
+    } else if(incomingByte == INCOME_CAM_TILT_UP || incomingByte == INCOME_CAM_TILT_DOWN || incomingByte == INCOME_CAM_PAN_LEFT || incomingByte == INCOME_CAM_PAN_RIGHT){
+      moveCamera(incomingByte);
+    } 
 
   } // End while(XBEE_SERIAL.available() > 0) 
 } // End recieveCommands()
@@ -482,7 +487,25 @@ void Communicator::checkToCloseDropBay() {
   }
 }
 
-
+/************CAMERA MOVEMENT*********************/
+//Function serves to move the camera on the gimble in the tilt or pan directions.
+void Communicator::moveCamera(char orientation) {
+  
+  if (orientation == INCOME_CAM_TILT_UP) {          //Tilt up
+    tiltServoPos += TILT_INCREMENT;
+    tiltServo.writeMicroseconds(tiltServoPos);
+  } else if (orientation == INCOME_CAM_TILT_DOWN) {  //Tilt down
+    tiltServoPos -= TILT_INCREMENT;
+    tiltServo.writeMicroseconds(tiltServoPos);
+  } else if (orientation == INCOME_CAM_PAN_LEFT) {   //Pan left
+    panServoPos -= PAN_INCREMENT;
+    panServo.writeMicroseconds(panServoPos);
+  } else if (orientation == INCOME_CAM_PAN_RIGHT) {  //Pan right
+    panServoPos -= PAN_INCREMENT;
+    panServo.writeMicroseconds(panServoPos);
+  }
+  
+}
 
 
 /***********GPS FUNCTIONALITY  *******/
