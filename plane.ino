@@ -170,13 +170,13 @@ void mediumLoop() {
   //L aileron output
   if(pw_l_aileron != 0)
   {
-      l_aileron_servo.writeMicroseconds(pw_l_aileron);
+      //l_aileron_servo.writeMicroseconds(pw_l_aileron);
   }
 
   //R aileron output
   if(pw_l_aileron != 0)
   {
-      r_aileron_servo.writeMicroseconds(pw_l_aileron);  //Signal is basically l_aileron and NOT(r_aileron) -> move eact opposite
+      //r_aileron_servo.writeMicroseconds(pw_l_aileron);  //Signal is basically l_aileron and NOT(r_aileron) -> move eact opposite
   }
 
   if(pw_l_vtail != 0)
@@ -280,8 +280,8 @@ void initializeServos() {
 
   // Attach each of the servos (before the interrupts to make sure it's initialized properly).
   wheel_servo.attach(TAIL_WHEEL_OUT);
-  l_aileron_servo.attach(LEFT_AILERON_OUT);
-  r_aileron_servo.attach(RIGHT_AILERON_OUT);
+  //l_aileron_servo.attach(LEFT_AILERON_OUT);
+  //r_aileron_servo.attach(RIGHT_AILERON_OUT);
   l_Vtail_servo.attach(LEFT_VTAIL_OUT);
   r_Vtail_servo.attach(RIGHT_VTAIL_OUT);
   l_flaps_servo.attach(FLAPS_LEFT_OUT);
@@ -290,8 +290,8 @@ void initializeServos() {
 
   // Apply 1500us neutral position (if drop bay is ever here, this neutral would likely no be ok for it
   wheel_servo.writeMicroseconds(1500);
-  l_aileron_servo.writeMicroseconds(1500);
-  r_aileron_servo.writeMicroseconds(1500);
+  //l_aileron_servo.writeMicroseconds(1500);
+  //r_aileron_servo.writeMicroseconds(1500);
   l_Vtail_servo.writeMicroseconds(1500);
   r_Vtail_servo.writeMicroseconds(1500);
   l_flaps_servo.writeMicroseconds(1500);

@@ -108,8 +108,8 @@ class Communicator {
 
     int currentTargeterDataPoint = -1;  //used for testing targeter
     int dropBayServoPos;
-    int panServoPos = 1800;
-    int tiltServoPos = 1800;
+    int panServoPos;
+    int tiltServoPos;
 
     double altitudeFt, altitudeAtDropFt;
 

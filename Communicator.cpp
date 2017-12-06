@@ -66,9 +66,14 @@ void Communicator::initialize() {
   dropBayServoPos = DROP_BAY_CLOSED;
   dropServo.writeMicroseconds(dropBayServoPos);
 
+  tiltServoPos = 1800;
+  panServoPos = 1800;
+  
   tiltServo.attach(TILT_PIN);
   panServo.attach(PAN_PIN);
-  
+  tiltServo.writeMicroseconds(tiltServoPos);
+  panServo.writeMicroseconds(panServoPos);
+    
   int maxTries = 3, numTries = 0;
   while (!initXBee() && ++numTries < maxTries); //Keep trying to put into transparent mode until failure
 
@@ -147,7 +152,7 @@ void Communicator::recieveCommands(unsigned long curTime) {
     // New command detected, parse and execute
     byte incomingByte = XBEE_SERIAL.read();
     DEBUG_PRINT("Received a command: ");
-    DEBUG_PRINT(incomingByte);
+    DEBUG_PRINTLN(incomingByte);
 
     // If we are currently in the middle of receiving a new GPS target
     if(bufferIndex > 0)
@@ -492,18 +497,30 @@ void Communicator::checkToCloseDropBay() {
 void Communicator::moveCamera(char orientation) {
   
   if (orientation == INCOME_CAM_TILT_UP) {          //Tilt up
-    tiltServoPos += TILT_INCREMENT;
+    if (tiltServoPos < 2400) {
+      tiltServoPos += TILT_INCREMENT;
+    } 
     tiltServo.writeMicroseconds(tiltServoPos);
-  } else if (orientation == INCOME_CAM_TILT_DOWN) {  //Tilt down
-    tiltServoPos -= TILT_INCREMENT;
+  } 
+  else if (orientation == INCOME_CAM_TILT_DOWN) {  //Tilt down
+    if (tiltServoPos > 600) {
+      tiltServoPos -= TILT_INCREMENT;
+    }
     tiltServo.writeMicroseconds(tiltServoPos);
-  } else if (orientation == INCOME_CAM_PAN_LEFT) {   //Pan left
-    panServoPos -= PAN_INCREMENT;
+  } 
+  else if (orientation == INCOME_CAM_PAN_LEFT) {   //Pan left
+    if (panServoPos > 600) {
+      panServoPos -= PAN_INCREMENT;
+    }
     panServo.writeMicroseconds(panServoPos);
-  } else if (orientation == INCOME_CAM_PAN_RIGHT) {  //Pan right
-    panServoPos -= PAN_INCREMENT;
+  } 
+  else if (orientation == INCOME_CAM_PAN_RIGHT) {  //Pan right
+    if (panServoPos < 2400) {
+      panServoPos += PAN_INCREMENT;
+    }
     panServo.writeMicroseconds(panServoPos);
   }
+  Serial.println(tiltServoPos);
   
 }
 
