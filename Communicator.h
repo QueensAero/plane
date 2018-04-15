@@ -11,24 +11,23 @@
 
 
 // MESSAGE CONSTANTS -- RECEIVE
-//Used characters: a,b,c,d,g,i,l,n,o,q,r,t,u
-#define INCOME_AUTO_ON		 	 'a'
-#define INCOME_AUTO_OFF      'n'
-#define INCOME_RESET		     'r'
-#define INCOME_RESTART		   'q'
-#define INCOME_DROP_ALT		   'g'
-#define INCOME_DROP_OPEN     'o'
-#define INCOME_DROP_CLOSE  	 'c'
-#define INCOME_BATTERY_V     'b'
-#define INCOME_NEW_TARGET_START 't'
-#define INCOME_CAM_TILT_UP   'u'
-#define INCOME_CAM_TILT_DOWN 'd'
-#define INCOME_CAM_PAN_LEFT  'l'
-#define INCOME_CAM_PAN_RIGHT 'i'
 
+#define INCOME_DROP			    'P'
+#define INCOME_AUTO_ON			'a'
+#define INCOME_AUTO_OFF     'n'
+#define INCOME_RESET		    'r'
+#define INCOME_RESTART		  'q'
+#define INCOME_DROP_ALT		  'g'
+#define INCOME_DROP_OPEN    'o'
+#define INCOME_DROP_CLOSE  	'c'
+#define INCOME_BATTERY_V    'b'
+#define INCOME_NEW_TARGET_START 't'
+#define INCOME_PAN_LEFT     'l'
+#define INCOME_PAN_RIGHT    'e'
+#define INCOME_PIT_UP       'u'
+#define INCOME_PIT_DOWN     'd'
 
 // MESSAGE CONSTANTS -- SEND
-//Used characters: a,b,c,d,k,o,p,q,r,s,w,x,y
 #define DATA_PACKET         'p'
 #define MESSAGE_START       's'
 #define MESSAGE_READY       'r'
@@ -52,11 +51,14 @@
 #define AUTOMATIC_CMD 1
 #define MANUAL_CMD 0
 
-//Camera Movement Details
-#define TILT_PIN 5
-#define PAN_PIN 6
-#define TILT_INCREMENT 100
-#define PAN_INCREMENT 100
+//Gimbal details
+#define GIMBAL_PIT_PIN 5
+#define GIMBAL_PAN_PIN 6
+#define GIMBAL_NEUTRAL 1500
+#define GIMBAL_MIN 1000
+#define GIMBAL_MAX 2000
+#define GIMBAL_INC 50
+
 
 //XBee
 #define XBEE_BAUD 115200
@@ -67,12 +69,13 @@
 #define GPS_BAUD 9600
 #define GPS_SERIAL Serial1
 
+
+
+
 class Communicator {
 
   private:
-    Servo dropServo;
-    Servo panServo;
-    Servo tiltServo;
+    Servo dropServo, gimbalPan, gimbalPitch;
 
     unsigned long timeAtDrop;
 
@@ -108,8 +111,6 @@ class Communicator {
 
     int currentTargeterDataPoint = -1;  //used for testing targeter
     int dropBayServoPos;
-    int panServoPos;
-    int tiltServoPos;
 
     double altitudeFt, altitudeAtDropFt;
 
@@ -117,10 +118,16 @@ class Communicator {
     ~Communicator();
     void initialize();
     void setDropBayState(int src, int state);
-    void moveCamera(char orientation);
 
     boolean reset;
     boolean restart;
+
+    //Gimbal variables and methods
+    int gimbalPanPos, gimbalPitPos;
+    void gimbalPanLeft();
+    void gimbalPanRight();
+    void gimbalPitUp();
+    void gimbalPitDown();
 
     //gps variables and functions
     char nmeaBuf[MAXLINELENGTH];  //needs to be public so GPS class can access

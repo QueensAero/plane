@@ -168,15 +168,16 @@ void mediumLoop() {
   comm.recalculateTargettingNow(false); //(with non-new data - projects forward with time since received GPS data
 
   //L aileron output
+  /*
   if(pw_l_aileron != 0)
   {
-      //l_aileron_servo.writeMicroseconds(pw_l_aileron);
+      l_aileron_servo.writeMicroseconds(pw_l_aileron);
   }
 
   //R aileron output
   if(pw_l_aileron != 0)
   {
-      //r_aileron_servo.writeMicroseconds(pw_l_aileron);  //Signal is basically l_aileron and NOT(r_aileron) -> move eact opposite
+      r_aileron_servo.writeMicroseconds(pw_l_aileron);  //Signal is basically l_aileron and NOT(r_aileron) -> move eact opposite
   }
 
   if(pw_l_vtail != 0)
@@ -188,9 +189,10 @@ void mediumLoop() {
   {
       r_Vtail_servo.writeMicroseconds(pw_r_vtail);
   }
-
+  */
   //TODO - may need to flip signal for left/right flaps
   //THIS ONE IS WEIRD
+  /*
   if(pw_r_aileron != 0)
   { 
       //TODO - flaps incoming signal can be thought of as switch (so program value for switch high/low, and program switch threshold)
@@ -202,7 +204,7 @@ void mediumLoop() {
   {
     wheel_servo.writeMicroseconds(tail_wheel_demixing(pw_l_vtail, pw_r_vtail));    
   }
-
+  */
 }
 
 // Preforme serial communication in the slow loop - this needs to hapen less often
@@ -271,17 +273,19 @@ void longLoop() {
 // Initialize servo locations
 void initializeServos() {
 
+  /*
   // Set pin modes for incoming PWM signals
   pinMode(LEFT_VTAIL_IN, INPUT);
   pinMode(RIGHT_VTAIL_IN, INPUT);
   pinMode(LEFT_AILERON_IN, INPUT);
   pinMode(RIGHT_AILERON_IN, INPUT);
   pinMode(FLAPS_IN, INPUT);
-
+  */
   // Attach each of the servos (before the interrupts to make sure it's initialized properly).
+  /*
   wheel_servo.attach(TAIL_WHEEL_OUT);
-  //l_aileron_servo.attach(LEFT_AILERON_OUT);
-  //r_aileron_servo.attach(RIGHT_AILERON_OUT);
+  l_aileron_servo.attach(LEFT_AILERON_OUT);
+  r_aileron_servo.attach(RIGHT_AILERON_OUT);
   l_Vtail_servo.attach(LEFT_VTAIL_OUT);
   r_Vtail_servo.attach(RIGHT_VTAIL_OUT);
   l_flaps_servo.attach(FLAPS_LEFT_OUT);
@@ -290,20 +294,20 @@ void initializeServos() {
 
   // Apply 1500us neutral position (if drop bay is ever here, this neutral would likely no be ok for it
   wheel_servo.writeMicroseconds(1500);
-  //l_aileron_servo.writeMicroseconds(1500);
-  //r_aileron_servo.writeMicroseconds(1500);
+  l_aileron_servo.writeMicroseconds(1500);
+  r_aileron_servo.writeMicroseconds(1500);
   l_Vtail_servo.writeMicroseconds(1500);
   r_Vtail_servo.writeMicroseconds(1500);
   l_flaps_servo.writeMicroseconds(1500);
   r_flaps_servo.writeMicroseconds(1500);
-
+  */
 
   // Attach interrupts on the rising edge of each input signal
-  attachInterrupt(LEFT_VTAIL_IN, isr_rising_l_vtail, RISING);
-  attachInterrupt(RIGHT_VTAIL_IN, isr_rising_r_vtail, RISING);
-  attachInterrupt(LEFT_AILERON_IN, isr_rising_l_aileron, RISING);
-  attachInterrupt(RIGHT_AILERON_IN, isr_rising_r_aileron, RISING);
-  attachInterrupt(FLAPS_IN, isr_rising_flaps, RISING);
+  //attachInterrupt(LEFT_VTAIL_IN, isr_rising_l_vtail, RISING);
+  //attachInterrupt(RIGHT_VTAIL_IN, isr_rising_r_vtail, RISING);
+  //attachInterrupt(LEFT_AILERON_IN, isr_rising_l_aileron, RISING);
+  //attachInterrupt(RIGHT_AILERON_IN, isr_rising_r_aileron, RISING);
+  //attachInterrupt(FLAPS_IN, isr_rising_flaps, RISING);
 
 
 }

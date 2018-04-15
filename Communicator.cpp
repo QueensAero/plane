@@ -66,14 +66,13 @@ void Communicator::initialize() {
   dropBayServoPos = DROP_BAY_CLOSED;
   dropServo.writeMicroseconds(dropBayServoPos);
 
-  tiltServoPos = 1800;
-  panServoPos = 1800;
-  
-  tiltServo.attach(TILT_PIN);
-  panServo.attach(PAN_PIN);
-  tiltServo.writeMicroseconds(tiltServoPos);
-  panServo.writeMicroseconds(panServoPos);
-    
+  //Attach gimbal servos
+  gimbalPan.attach(GIMBAL_PAN_PIN);
+  gimbalPitch.attach(GIMBAL_PIT_PIN);
+  gimbalPanPos = gimbalPitPos = GIMBAL_NEUTRAL;
+  gimbalPan.writeMicroseconds(gimbalPanPos);
+  gimbalPitch.writeMicroseconds(gimbalPitPos);
+
   int maxTries = 3, numTries = 0;
   while (!initXBee() && ++numTries < maxTries); //Keep trying to put into transparent mode until failure
 
@@ -141,7 +140,30 @@ bool Communicator::sendCmdAndWaitForOK(String cmd, int timeout)
     return false;
 }
 
-
+void Communicator::gimbalPanLeft() {
+  if(gimbalPanPos - GIMBAL_INC < GIMBAL_MIN) return;
+  gimbalPanPos -= GIMBAL_INC;
+  gimbalPan.writeMicroseconds(gimbalPanPos);
+  DEBUG_PRINTLN("LEFT");
+}
+void Communicator::gimbalPanRight() {
+  if(gimbalPanPos + GIMBAL_INC > GIMBAL_MAX) return;
+  gimbalPanPos += GIMBAL_INC;
+  gimbalPan.writeMicroseconds(gimbalPanPos);
+  DEBUG_PRINTLN("RIGHT");
+}
+void Communicator::gimbalPitUp() {
+  if(gimbalPitPos + GIMBAL_INC > GIMBAL_MAX) return;
+  gimbalPitPos += GIMBAL_INC;
+  gimbalPitch.writeMicroseconds(gimbalPitPos);
+  DEBUG_PRINTLN("UP");
+}
+void Communicator::gimbalPitDown() {
+  if(gimbalPitPos - GIMBAL_INC < GIMBAL_MIN) return;
+  gimbalPitPos -= GIMBAL_INC;
+  gimbalPitch.writeMicroseconds(gimbalPitPos);
+  DEBUG_PRINTLN("DOWN");
+}
 
 // Function that is called from main program to receive incoming serial commands from ground station
 // Commands are one byte long, represented as characters for easy reading
@@ -152,7 +174,7 @@ void Communicator::recieveCommands(unsigned long curTime) {
     // New command detected, parse and execute
     byte incomingByte = XBEE_SERIAL.read();
     DEBUG_PRINT("Received a command: ");
-    DEBUG_PRINTLN(incomingByte);
+    DEBUG_PRINT(incomingByte);
 
     // If we are currently in the middle of receiving a new GPS target
     if(bufferIndex > 0)
@@ -249,9 +271,15 @@ void Communicator::recieveCommands(unsigned long curTime) {
       // Start of a gps target position update message
       bufferIndex = 1;
       transmitStartTime = curTime;
-    } else if(incomingByte == INCOME_CAM_TILT_UP || incomingByte == INCOME_CAM_TILT_DOWN || incomingByte == INCOME_CAM_PAN_LEFT || incomingByte == INCOME_CAM_PAN_RIGHT){
-      moveCamera(incomingByte);
-    } 
+    } else if(incomingByte == INCOME_PAN_LEFT) {
+      gimbalPanLeft();
+    } else if(incomingByte == INCOME_PAN_RIGHT) {
+      gimbalPanRight();
+    } else if(incomingByte == INCOME_PIT_UP) {
+      gimbalPitUp();
+    } else if(incomingByte == INCOME_PIT_DOWN) {
+      gimbalPitDown();
+    }
 
   } // End while(XBEE_SERIAL.available() > 0) 
 } // End recieveCommands()
@@ -277,19 +305,21 @@ void Communicator::sendData() {
     GPS.milliseconds = random(0,1000);
     GPS.seconds = random(0,60);  */
 
-
+  float battLevel = (float)analogRead(BATTERY_VOLTAGE_PIN)*ANALOG_READ_CONV;
   //Send to XBee
   XBEE_SERIAL.print("*");
   XBEE_SERIAL.print(DATA_PACKET);
   sendFloat((float)altitudeFt);
   sendFloat(GPS.speedMPS);
-  sendFloat(GPS.latitude);
-  sendFloat(GPS.longitude);
-  sendFloat(GPS.angle);
+  sendFloat(GPS.latitudeDegrees);
+  sendFloat(GPS.longitudeDegrees);
   sendFloat(GPS.HDOP);
   sendFloat((float)GPS.msSinceValidHDOP);
   sendFloat(GPS.altitudeMeters);
+  sendFloat(battLevel);
+  sendFloat(GPS.angle);
   sendUint8_t(GPS.fixquality);
+  sendUint8_t(GPS.satellites);
   XBEE_SERIAL.print("ee");
 
 
@@ -492,37 +522,7 @@ void Communicator::checkToCloseDropBay() {
   }
 }
 
-/************CAMERA MOVEMENT*********************/
-//Function serves to move the camera on the gimble in the tilt or pan directions.
-void Communicator::moveCamera(char orientation) {
-  
-  if (orientation == INCOME_CAM_TILT_UP) {          //Tilt up
-    if (tiltServoPos < 2400) {
-      tiltServoPos += TILT_INCREMENT;
-    } 
-    tiltServo.writeMicroseconds(tiltServoPos);
-  } 
-  else if (orientation == INCOME_CAM_TILT_DOWN) {  //Tilt down
-    if (tiltServoPos > 600) {
-      tiltServoPos -= TILT_INCREMENT;
-    }
-    tiltServo.writeMicroseconds(tiltServoPos);
-  } 
-  else if (orientation == INCOME_CAM_PAN_LEFT) {   //Pan left
-    if (panServoPos > 600) {
-      panServoPos -= PAN_INCREMENT;
-    }
-    panServo.writeMicroseconds(panServoPos);
-  } 
-  else if (orientation == INCOME_CAM_PAN_RIGHT) {  //Pan right
-    if (panServoPos < 2400) {
-      panServoPos += PAN_INCREMENT;
-    }
-    panServo.writeMicroseconds(panServoPos);
-  }
-  Serial.println(tiltServoPos);
-  
-}
+
 
 
 /***********GPS FUNCTIONALITY  *******/
