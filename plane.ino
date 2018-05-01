@@ -21,6 +21,8 @@ boolean didGetZeroAltitudeLevel = false;
 
 // System variables
 byte blinkState;
+long pointTime = 0;
+bool inProgress = false;
 
 // Servo declarations
 Servo wheel_servo, l_aileron_servo, r_aileron_servo, l_Vtail_servo, r_Vtail_servo, l_flaps_servo, r_flaps_servo;
@@ -54,7 +56,7 @@ void setup() {
   DEBUG_BEGIN(DEBUG_SERIAL_BAUD); // This is to computer (this is ok even if not connected to computer)
   TARGET_BEGIN(DEBUG_SERIAL_BAUD); //if either defined we start it (note it may restart if both defined)
 
-  DEBUG_PRINTLN("Starting");
+  DEBUG_PRINTLN("\nStarting");
 
   // Do this first so servos are hopefully good regardless if below fails/times out/gets 'stuck'
   initializeServos();
@@ -155,6 +157,17 @@ void loop() {
 // TODO: possibly flaps swtiching (if down is +ve on one and -ve on other), and find optimal position
 //TODO: Tail wheel demixing
 void mediumLoop() {
+  if(inProgress) {
+    int delt = millis() - pointTime;
+    DEBUG_PRINT("Drop Pushbutton Pressed - ");
+    DEBUG_PRINTLN(delt);
+    if(delt > 1000) {
+      DEBUG_PRINTLN("In method");
+      pointTime = millis();
+      comm.markPoint();
+    }
+    inProgress = false;
+  }
 
 
 /*
@@ -357,8 +370,7 @@ int tail_wheel_demixing(int leftSignal, int rightSignal) {
 /************ ISR's *****************/
 
 //Pusbuttons
-void isr_drop_pushbutton()
-{
+void isr_drop_pushbutton() {
   /*
   //TODO - is guard below (for not in air) ok?  Have default disabled?
   if(comm.dropBayServoPos == DROP_BAY_OPEN)
@@ -374,9 +386,8 @@ void isr_drop_pushbutton()
   //TODO - ensure doesn't become active on first push
   //TODO - decide on altitude filtering
   //TODO - debouncing (only accept trigger if >5s after previous push
-
-    DEBUG_PRINTLN("Drop Pushbutton Pressed");
-
+  if(inProgress) return;
+  inProgress = true;
 }
 
 void isr_reset_pushbutton()

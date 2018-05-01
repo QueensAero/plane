@@ -29,6 +29,7 @@
 
 // MESSAGE CONSTANTS -- SEND
 #define DATA_PACKET         'p'
+#define POINT_PACKET        't'
 #define MESSAGE_START       's'
 #define MESSAGE_READY       'r'
 #define MESSAGE_DROP_OPEN   'o'
@@ -137,6 +138,7 @@ class Communicator {
     // Functions called by main program each loop
     void recieveCommands(unsigned long curTime);  // When drop command is received set altitude at drop
     void sendData();  // Send current altitude, altitude at drop, roll, pitch, airspeed
+    void markPoint();
     void checkToCloseDropBay(void);  //Close drop bay after 10 seconds of being open
     void recalculateTargettingNow(boolean withNewData);  //Check GPS data vs. target to see if we should drop
 

@@ -285,6 +285,17 @@ void Communicator::recieveCommands(unsigned long curTime) {
 } // End recieveCommands()
 
 
+void Communicator::markPoint() {
+  XBEE_SERIAL.print("*");
+  XBEE_SERIAL.print(POINT_PACKET);
+  sendFloat((float)altitudeFt);
+  sendFloat(GPS.latitudeDegrees);
+  sendFloat(GPS.longitudeDegrees);
+  sendFloat(GPS.altitudeMeters);
+  sendFloat(GPS.angle);
+  XBEE_SERIAL.print("ee");
+}
+
 // Data is sent via wireless serial link to ground station
 // data packet format:  *pALTITUDE%AIRSPEED%LATTITUDE%LONGITUDE%HEADING%ms%secondee
 // Total number of bytes: 11 (*p% type) + ~ 50 (data) = 61 bytes *4x/second = 244 bytes/s.  Each transmission is under outgoing buffer (128 bytes) and baud
