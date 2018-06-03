@@ -22,9 +22,16 @@
 #define INCOME_DROP_CLOSE  	'c'
 #define INCOME_BATTERY_V    'b'
 #define INCOME_NEW_TARGET_START 't'
+#define INCOME_PAN_LEFT     'l'
+#define INCOME_PAN_RIGHT    'e'
+#define INCOME_PIT_UP       'u'
+#define INCOME_PIT_DOWN     'd'
+#define INCOME_GIM_RESET    'x'
+#define INCOME_POINT        'v'
 
 // MESSAGE CONSTANTS -- SEND
-#define DATA_PACKET 'p'
+#define DATA_PACKET         'p'
+#define POINT_PACKET        't'
 #define MESSAGE_START       's'
 #define MESSAGE_READY       'r'
 #define MESSAGE_DROP_OPEN   'o'
@@ -47,6 +54,14 @@
 #define AUTOMATIC_CMD 1
 #define MANUAL_CMD 0
 
+//Gimbal details
+#define GIMBAL_PIT_PIN 5  //Marked right aileron on PCB
+#define GIMBAL_PAN_PIN 6  //Marked left aileron on PCB
+#define GIMBAL_NEUTRAL 1500
+#define GIMBAL_MIN 1000
+#define GIMBAL_MAX 2000
+#define GIMBAL_INC 50
+
 
 //XBee
 #define XBEE_BAUD 115200
@@ -63,7 +78,7 @@
 class Communicator {
 
   private:
-    Servo dropServo;
+    Servo dropServo, gimbalPan, gimbalPitch;
 
     unsigned long timeAtDrop;
 
@@ -110,6 +125,14 @@ class Communicator {
     boolean reset;
     boolean restart;
 
+    //Gimbal variables and methods
+    int gimbalPanPos, gimbalPitPos;
+    void gimbalPanLeft();
+    void gimbalPanRight();
+    void gimbalPitUp();
+    void gimbalPitDown();
+    void gimbalReset();
+
     //gps variables and functions
     char nmeaBuf[MAXLINELENGTH];  //needs to be public so GPS class can access
     void getSerialDataFromGPS();  //needs to be public since called from plane
@@ -118,6 +141,7 @@ class Communicator {
     // Functions called by main program each loop
     void recieveCommands(unsigned long curTime);  // When drop command is received set altitude at drop
     void sendData();  // Send current altitude, altitude at drop, roll, pitch, airspeed
+    void markPoint();
     void checkToCloseDropBay(void);  //Close drop bay after 10 seconds of being open
     void recalculateTargettingNow(boolean withNewData);  //Check GPS data vs. target to see if we should drop
 

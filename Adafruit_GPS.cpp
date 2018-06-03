@@ -16,7 +16,7 @@
 
   This is significantly changed from library implementation.  Summary of changes:
   - Moved all serial communication with GPS into communicator.cpp, for more flexibility
-  - Removed parsing of strings other than GPRMC (since we only use GPRMC)
+  - Removed parsing of strings other than GPRMC and GGA
   - Altered parsing function - see comment in it about checksum now starting from buffer index 1 (instead 2)
   - The raw NMEA string is now housed in communicator
   - This class essentially only functions by being passed a raw NMEA string to be parsed. It takes care of checksum.

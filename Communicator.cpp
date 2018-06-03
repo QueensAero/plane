@@ -66,6 +66,13 @@ void Communicator::initialize() {
   dropBayServoPos = DROP_BAY_CLOSED;
   dropServo.writeMicroseconds(dropBayServoPos);
 
+  //Attach gimbal servos
+  gimbalPan.attach(GIMBAL_PAN_PIN);
+  gimbalPitch.attach(GIMBAL_PIT_PIN);
+  gimbalPanPos = gimbalPitPos = GIMBAL_NEUTRAL;
+  gimbalPan.writeMicroseconds(gimbalPanPos);
+  gimbalPitch.writeMicroseconds(gimbalPitPos);
+
   int maxTries = 3, numTries = 0;
   while (!initXBee() && ++numTries < maxTries); //Keep trying to put into transparent mode until failure
 
@@ -133,7 +140,36 @@ bool Communicator::sendCmdAndWaitForOK(String cmd, int timeout)
     return false;
 }
 
-
+void Communicator::gimbalPanLeft() {
+  if(gimbalPanPos - GIMBAL_INC < GIMBAL_MIN) return;
+  gimbalPanPos -= GIMBAL_INC;
+  gimbalPan.writeMicroseconds(gimbalPanPos);
+  DEBUG_PRINTLN("LEFT");
+}
+void Communicator::gimbalPanRight() {
+  if(gimbalPanPos + GIMBAL_INC > GIMBAL_MAX) return;
+  gimbalPanPos += GIMBAL_INC;
+  gimbalPan.writeMicroseconds(gimbalPanPos);
+  DEBUG_PRINTLN("RIGHT");
+}
+void Communicator::gimbalPitDown() {
+  if(gimbalPitPos + GIMBAL_INC > GIMBAL_MAX) return;
+  gimbalPitPos += GIMBAL_INC;
+  gimbalPitch.writeMicroseconds(gimbalPitPos);
+  DEBUG_PRINTLN("UP");
+}
+void Communicator::gimbalPitUp() {
+  if(gimbalPitPos - GIMBAL_INC < GIMBAL_MIN) return;
+  gimbalPitPos -= GIMBAL_INC;
+  gimbalPitch.writeMicroseconds(gimbalPitPos);
+  DEBUG_PRINTLN("DOWN");
+}
+void Communicator::gimbalReset() {
+  gimbalPitPos = gimbalPanPos = GIMBAL_NEUTRAL;
+  gimbalPitch.writeMicroseconds(gimbalPitPos);
+  gimbalPan.writeMicroseconds(gimbalPanPos);
+  DEBUG_PRINTLN("RESET");
+}
 
 // Function that is called from main program to receive incoming serial commands from ground station
 // Commands are one byte long, represented as characters for easy reading
@@ -241,11 +277,34 @@ void Communicator::recieveCommands(unsigned long curTime) {
       // Start of a gps target position update message
       bufferIndex = 1;
       transmitStartTime = curTime;
+    } else if(incomingByte == INCOME_PAN_LEFT) {
+      gimbalPanLeft();
+    } else if(incomingByte == INCOME_PAN_RIGHT) {
+      gimbalPanRight();
+    } else if(incomingByte == INCOME_PIT_UP) {
+      gimbalPitUp();
+    } else if(incomingByte == INCOME_PIT_DOWN) {
+      gimbalPitDown();
+    } else if(incomingByte == INCOME_GIM_RESET) {
+      gimbalReset();
+    } else if(incomingByte == INCOME_POINT) {
+      markPoint();
     }
 
   } // End while(XBEE_SERIAL.available() > 0) 
 } // End recieveCommands()
 
+
+void Communicator::markPoint() {
+  XBEE_SERIAL.print("*");
+  XBEE_SERIAL.print(POINT_PACKET);
+  sendFloat((float)altitudeFt);
+  sendFloat(GPS.latitudeDegrees);
+  sendFloat(GPS.longitudeDegrees);
+  sendFloat(GPS.altitudeMeters);
+  sendFloat(GPS.angle);
+  XBEE_SERIAL.print("ee");
+}
 
 // Data is sent via wireless serial link to ground station
 // data packet format:  *pALTITUDE%AIRSPEED%LATTITUDE%LONGITUDE%HEADING%ms%secondee
@@ -267,19 +326,21 @@ void Communicator::sendData() {
     GPS.milliseconds = random(0,1000);
     GPS.seconds = random(0,60);  */
 
-
+  float battLevel = (float)analogRead(BATTERY_VOLTAGE_PIN)*ANALOG_READ_CONV;
   //Send to XBee
   XBEE_SERIAL.print("*");
   XBEE_SERIAL.print(DATA_PACKET);
   sendFloat((float)altitudeFt);
   sendFloat(GPS.speedMPS);
-  sendFloat(GPS.latitude);
-  sendFloat(GPS.longitude);
-  sendFloat(GPS.angle);
+  sendFloat(GPS.latitudeDegrees);
+  sendFloat(GPS.longitudeDegrees);
   sendFloat(GPS.HDOP);
   sendFloat((float)GPS.msSinceValidHDOP);
   sendFloat(GPS.altitudeMeters);
+  sendFloat(battLevel);
+  sendFloat(GPS.angle);
   sendUint8_t(GPS.fixquality);
+  sendUint8_t(GPS.satellites);
   XBEE_SERIAL.print("ee");
 
 
@@ -511,7 +572,6 @@ void Communicator::setupGPS() {
   }
 
 }
-
 
 
 void Communicator::getSerialDataFromGPS() {

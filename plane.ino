@@ -21,6 +21,8 @@ boolean didGetZeroAltitudeLevel = false;
 
 // System variables
 byte blinkState;
+long pointTime = 0;
+bool inProgress = false;
 
 // Servo declarations
 Servo wheel_servo, l_aileron_servo, r_aileron_servo, l_Vtail_servo, r_Vtail_servo, l_flaps_servo, r_flaps_servo;
@@ -54,7 +56,7 @@ void setup() {
   DEBUG_BEGIN(DEBUG_SERIAL_BAUD); // This is to computer (this is ok even if not connected to computer)
   TARGET_BEGIN(DEBUG_SERIAL_BAUD); //if either defined we start it (note it may restart if both defined)
 
-  DEBUG_PRINTLN("Starting");
+  DEBUG_PRINTLN("\nStarting");
 
   // Do this first so servos are hopefully good regardless if below fails/times out/gets 'stuck'
   initializeServos();
@@ -155,6 +157,17 @@ void loop() {
 // TODO: possibly flaps swtiching (if down is +ve on one and -ve on other), and find optimal position
 //TODO: Tail wheel demixing
 void mediumLoop() {
+  if(inProgress) {
+    int delt = millis() - pointTime;
+    DEBUG_PRINT("Drop Pushbutton Pressed - ");
+    DEBUG_PRINTLN(delt);
+    if(delt > 1000) {
+      DEBUG_PRINTLN("In method");
+      pointTime = millis();
+      comm.markPoint();
+    }
+    inProgress = false;
+  }
 
 
 /*
@@ -168,6 +181,7 @@ void mediumLoop() {
   comm.recalculateTargettingNow(false); //(with non-new data - projects forward with time since received GPS data
 
   //L aileron output
+  /*
   if(pw_l_aileron != 0)
   {
       l_aileron_servo.writeMicroseconds(pw_l_aileron);
@@ -188,9 +202,10 @@ void mediumLoop() {
   {
       r_Vtail_servo.writeMicroseconds(pw_r_vtail);
   }
-
+  */
   //TODO - may need to flip signal for left/right flaps
   //THIS ONE IS WEIRD
+  /*
   if(pw_r_aileron != 0)
   { 
       //TODO - flaps incoming signal can be thought of as switch (so program value for switch high/low, and program switch threshold)
@@ -202,7 +217,7 @@ void mediumLoop() {
   {
     wheel_servo.writeMicroseconds(tail_wheel_demixing(pw_l_vtail, pw_r_vtail));    
   }
-
+  */
 }
 
 // Preforme serial communication in the slow loop - this needs to hapen less often
@@ -271,14 +286,16 @@ void longLoop() {
 // Initialize servo locations
 void initializeServos() {
 
+  /*
   // Set pin modes for incoming PWM signals
   pinMode(LEFT_VTAIL_IN, INPUT);
   pinMode(RIGHT_VTAIL_IN, INPUT);
   pinMode(LEFT_AILERON_IN, INPUT);
   pinMode(RIGHT_AILERON_IN, INPUT);
   pinMode(FLAPS_IN, INPUT);
-
+  */
   // Attach each of the servos (before the interrupts to make sure it's initialized properly).
+  /*
   wheel_servo.attach(TAIL_WHEEL_OUT);
   l_aileron_servo.attach(LEFT_AILERON_OUT);
   r_aileron_servo.attach(RIGHT_AILERON_OUT);
@@ -296,14 +313,14 @@ void initializeServos() {
   r_Vtail_servo.writeMicroseconds(1500);
   l_flaps_servo.writeMicroseconds(1500);
   r_flaps_servo.writeMicroseconds(1500);
-
+  */
 
   // Attach interrupts on the rising edge of each input signal
-  attachInterrupt(LEFT_VTAIL_IN, isr_rising_l_vtail, RISING);
-  attachInterrupt(RIGHT_VTAIL_IN, isr_rising_r_vtail, RISING);
-  attachInterrupt(LEFT_AILERON_IN, isr_rising_l_aileron, RISING);
-  attachInterrupt(RIGHT_AILERON_IN, isr_rising_r_aileron, RISING);
-  attachInterrupt(FLAPS_IN, isr_rising_flaps, RISING);
+  //attachInterrupt(LEFT_VTAIL_IN, isr_rising_l_vtail, RISING);
+  //attachInterrupt(RIGHT_VTAIL_IN, isr_rising_r_vtail, RISING);
+  //attachInterrupt(LEFT_AILERON_IN, isr_rising_l_aileron, RISING);
+  //attachInterrupt(RIGHT_AILERON_IN, isr_rising_r_aileron, RISING);
+  //attachInterrupt(FLAPS_IN, isr_rising_flaps, RISING);
 
 
 }
@@ -353,8 +370,7 @@ int tail_wheel_demixing(int leftSignal, int rightSignal) {
 /************ ISR's *****************/
 
 //Pusbuttons
-void isr_drop_pushbutton()
-{
+void isr_drop_pushbutton() {
   /*
   //TODO - is guard below (for not in air) ok?  Have default disabled?
   if(comm.dropBayServoPos == DROP_BAY_OPEN)
@@ -370,9 +386,8 @@ void isr_drop_pushbutton()
   //TODO - ensure doesn't become active on first push
   //TODO - decide on altitude filtering
   //TODO - debouncing (only accept trigger if >5s after previous push
-
-    DEBUG_PRINTLN("Drop Pushbutton Pressed");
-
+  if(inProgress) return;
+  inProgress = true;
 }
 
 void isr_reset_pushbutton()
